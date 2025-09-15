@@ -14,6 +14,10 @@
 "Светлая" = "Light";
 "Тёмная" = "Dark";
 "Как в системе" = "System";
+
+"Текущий режим: Как в системе. Нажмите для переключения на тёмный режим" = "Current mode: System. Click to switch to dark mode";
+"Текущий режим: Тёмный. Нажмите для переключения на светлый режим" = "Current mode: Dark. Click to switch to light mode";
+"Текущий режим: Светлый. Нажмите для переключения на системный режим" = "Current mode: Light. Click to switch to system mode";
 "Иконка в Dock" = "Dock icon";
 "Иконка в меню-баре" = "Menu bar icon";
 "Только с экономией" = "Only with size saving";

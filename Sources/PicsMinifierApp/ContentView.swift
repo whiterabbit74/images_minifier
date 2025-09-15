@@ -168,10 +168,21 @@ struct ContentView: View {
 		.onExitCommand { withAnimation { showingSettings = false } }
 		.toolbar {
 			ToolbarItem(placement: .primaryAction) {
-				Button(action: { showingSettings = true }) {
-					Image(systemName: "gearshape")
+				HStack(spacing: 8) {
+					Button(action: {
+						withAnimation(.easeInOut(duration: 0.2)) {
+							toggleAppearanceMode()
+						}
+					}) {
+						Image(systemName: appearanceModeIcon())
+					}
+					.help(appearanceModeHelpText())
+
+					Button(action: { showingSettings = true }) {
+						Image(systemName: "gearshape")
+					}
+					.help(NSLocalizedString("Открыть настройки (⌘,)", comment: ""))
 				}
-				.help(NSLocalizedString("Открыть настройки (⌘,)", comment: ""))
 			}
 		}
 	}
@@ -184,6 +195,39 @@ struct ContentView: View {
 			return .dark
 		case .auto:
 			return nil // Позволяет системе определить тему автоматически
+		}
+	}
+
+	private func toggleAppearanceMode() {
+		switch appearanceMode {
+		case .auto:
+			appearanceMode = .dark
+		case .dark:
+			appearanceMode = .light
+		case .light:
+			appearanceMode = .auto
+		}
+	}
+
+	private func appearanceModeIcon() -> String {
+		switch appearanceMode {
+		case .auto:
+			return "circle.lefthalf.filled"
+		case .dark:
+			return "moon.fill"
+		case .light:
+			return "sun.max.fill"
+		}
+	}
+
+	private func appearanceModeHelpText() -> String {
+		switch appearanceMode {
+		case .auto:
+			return NSLocalizedString("Текущий режим: Как в системе. Нажмите для переключения на тёмный режим", comment: "")
+		case .dark:
+			return NSLocalizedString("Текущий режим: Тёмный. Нажмите для переключения на светлый режим", comment: "")
+		case .light:
+			return NSLocalizedString("Текущий режим: Светлый. Нажмите для переключения на системный режим", comment: "")
 		}
 	}
 }
