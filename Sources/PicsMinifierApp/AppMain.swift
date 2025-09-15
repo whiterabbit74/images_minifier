@@ -33,8 +33,17 @@ struct PicsMinifierMainApp: App {
 	}
 
 	init() {
+		// Инициализируем crash logger
+		CrashLogger.shared.logInfo("Application starting", context: "AppMain")
+
 		// Применяем иконки при старте
-		AppUIManager.shared.applyAppIcons()
+		do {
+			AppUIManager.shared.applyAppIcons()
+			CrashLogger.shared.logInfo("App icons applied", context: "AppMain")
+		} catch {
+			CrashLogger.shared.logError(error, context: "AppMain.applyAppIcons")
+		}
+
 		// Сбросим CSV-лог и начнём заново с новым форматом
 		let logURL = AppPaths.logCSVURL()
 		try? FileManager.default.removeItem(at: logURL)

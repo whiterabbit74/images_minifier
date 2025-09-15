@@ -44,7 +44,17 @@ final class AppUIManager {
 	}
 
 	func setDockIconVisible(_ visible: Bool) {
-		NSApp.setActivationPolicy(visible ? .regular : .accessory)
+		if visible {
+			NSApp.setActivationPolicy(.regular)
+		} else {
+			// Сохраняем окна при переключении в accessory режим
+			let wasVisible = NSApp.windows.first?.isVisible ?? false
+			NSApp.setActivationPolicy(.accessory)
+			// Восстанавливаем видимость окон, если они были видны
+			if wasVisible, let mainWindow = NSApp.windows.first {
+				mainWindow.orderFront(nil)
+			}
+		}
 	}
 
 	func showDockBounce() {
@@ -142,6 +152,15 @@ final class AppUIManager {
 	}
 
 	@objc func openSettings() {
+		// Принудительно активируем приложение и показываем главное окно
+		NSApp.activate(ignoringOtherApps: true)
+
+		// Убеждаемся, что главное окно видимо
+		if let mainWindow = NSApp.windows.first {
+			mainWindow.makeKeyAndOrderFront(nil)
+		}
+
+		// Отправляем уведомление для открытия настроек
 		NotificationCenter.default.post(name: .openSettings, object: nil)
 	}
 }
