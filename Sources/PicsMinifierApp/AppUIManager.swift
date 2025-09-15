@@ -24,6 +24,15 @@ final class AppUIManager {
 
 	private func loadMenuBarImage() -> NSImage? {
 		let bundle = Bundle.module
+
+		// Сначала пробуем загрузить новую PDF иконку для menu bar
+		if let pdfURL = bundle.url(forResource: "compression_icon_simple", withExtension: "pdf"),
+		   let image = NSImage(contentsOf: pdfURL) {
+			// PDF векторная иконка будет идеально масштабироваться для menu bar
+			return image
+		}
+
+		// Fallback на старые PNG иконки
 		if let imgURL = bundle.url(forResource: "appstore", withExtension: "png", subdirectory: "AppIcons"),
 		   let image = NSImage(contentsOf: imgURL) {
 			return image
@@ -47,10 +56,13 @@ final class AppUIManager {
 			if statusItem == nil {
 				let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 				if let image = loadMenuBarImage() {
-					image.size = NSSize(width: 18, height: 18)
+					// Оптимальный размер для menu bar (учитывая Retina дисплеи)
+					image.size = NSSize(width: 20, height: 20)
+					// Template image автоматически адаптируется к светлой/темной теме menu bar
 					image.isTemplate = true
 					item.button?.image = image
 				} else {
+					// Fallback эмодзи, если иконка не загрузилась
 					item.button?.title = "🗜️"
 				}
 				let menu = NSMenu()
