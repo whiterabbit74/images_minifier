@@ -4,7 +4,7 @@ import PicsMinifierCore
  
 struct ContentView: View {
 	@State var appearanceMode: AppearanceMode = .auto
-	@State private var currentColorScheme: ColorScheme?
+	@State private var systemIsDark: Bool = false
 	@State var showDockIcon: Bool = true
 	@State var showMenuBarIcon: Bool = true
 	@State private var isTargeted: Bool = false
@@ -161,6 +161,18 @@ struct ContentView: View {
 			showMenuBarIcon = UserDefaults.standard.object(forKey: "ui.showMenuBarIcon") as? Bool ?? showMenuBarIcon
 			AppUIManager.shared.setDockIconVisible(showDockIcon)
 			AppUIManager.shared.setMenuBarIconVisible(showMenuBarIcon)
+
+			// Инициализируем системную тему
+			updateSystemTheme()
+
+			// Добавляем наблюдатель за изменениями системной темы
+			DistributedNotificationCenter.default.addObserver(
+				forName: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+				object: nil,
+				queue: .main
+			) { _ in
+				updateSystemTheme()
+			}
 		}
 		.onChange(of: appearanceMode) { UserDefaults.standard.set($0.rawValue, forKey: "ui.appearanceMode") }
 		.onChange(of: showDockIcon) { UserDefaults.standard.set($0, forKey: "ui.showDockIcon") }
@@ -194,7 +206,8 @@ struct ContentView: View {
 		case .dark:
 			return .dark
 		case .auto:
-			return nil // Позволяет системе определить тему автоматически
+			// Для автоматического режима используем отслеживаемое системное значение
+			return systemIsDark ? .dark : .light
 		}
 	}
 
@@ -229,6 +242,11 @@ struct ContentView: View {
 		case .light:
 			return NSLocalizedString("Текущий режим: Светлый. Нажмите для переключения на системный режим", comment: "")
 		}
+	}
+
+	private func updateSystemTheme() {
+		let appearance = NSApp.effectiveAppearance
+		systemIsDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
 	}
 }
 
