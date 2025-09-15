@@ -13,6 +13,12 @@ public enum SaveMode: String, CaseIterable, Codable {
 	case overwrite
 }
 
+public enum AppearanceMode: String, CaseIterable, Codable {
+	case light = "light"
+	case dark = "dark"
+	case auto = "auto"
+}
+
 public struct AppSettings: Codable, Equatable {
 	public var preset: CompressionPreset = .balanced
 	public var saveMode: SaveMode = .suffix

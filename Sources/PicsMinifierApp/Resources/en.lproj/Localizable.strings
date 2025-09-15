@@ -11,7 +11,9 @@
 "Выйти" = "Quit";
 
 "Интерфейс" = "Interface";
-"Тёмная тема" = "Dark mode";
+"Светлая" = "Light";
+"Тёмная" = "Dark";
+"Как в системе" = "System";
 "Иконка в Dock" = "Dock icon";
 "Иконка в меню-баре" = "Menu bar icon";
 "Только с экономией" = "Only with size saving";

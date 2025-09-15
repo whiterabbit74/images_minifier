@@ -57,7 +57,10 @@ extension ContentView {
 			self.preserveMetadata = UserDefaults.standard.object(forKey: "settings.preserveMetadata") as? Bool ?? self.preserveMetadata
 			self.convertToSRGB = UserDefaults.standard.object(forKey: "settings.convertToSRGB") as? Bool ?? self.convertToSRGB
 			self.enableGifsicle = UserDefaults.standard.object(forKey: "settings.enableGifsicle") as? Bool ?? self.enableGifsicle
-			self.isDark = UserDefaults.standard.object(forKey: "ui.isDark") as? Bool ?? self.isDark
+			if let rawAppearance = UserDefaults.standard.string(forKey: "ui.appearanceMode"),
+			   let mode = AppearanceMode(rawValue: rawAppearance) {
+				self.appearanceMode = mode
+			}
 			self.showDockIcon = UserDefaults.standard.object(forKey: "ui.showDockIcon") as? Bool ?? self.showDockIcon
 			self.showMenuBarIcon = UserDefaults.standard.object(forKey: "ui.showMenuBarIcon") as? Bool ?? self.showMenuBarIcon
 		}

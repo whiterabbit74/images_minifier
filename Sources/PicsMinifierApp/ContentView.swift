@@ -3,7 +3,8 @@ import AppKit
 import PicsMinifierCore
  
 struct ContentView: View {
-	@State var isDark: Bool = false
+	@State var appearanceMode: AppearanceMode = .auto
+	@State private var currentColorScheme: ColorScheme?
 	@State var showDockIcon: Bool = true
 	@State var showMenuBarIcon: Bool = true
 	@State private var isTargeted: Bool = false
@@ -133,7 +134,7 @@ struct ContentView: View {
 		.padding(16)
 		.frame(width: 600, height: 600)
 		.fixedSize()
-		.preferredColorScheme(isDark ? .dark : .light)
+		.preferredColorScheme(resolvedColorScheme())
 		.onAppear {
 			AppUIManager.shared.lockMainWindowSize(width: 600, height: 600)
 			AppUIManager.shared.setupWindowPositionAutosave()
@@ -146,13 +147,22 @@ struct ContentView: View {
 			preserveMetadata = UserDefaults.standard.object(forKey: "settings.preserveMetadata") as? Bool ?? preserveMetadata
 			convertToSRGB = UserDefaults.standard.object(forKey: "settings.convertToSRGB") as? Bool ?? convertToSRGB
 			enableGifsicle = UserDefaults.standard.object(forKey: "settings.enableGifsicle") as? Bool ?? enableGifsicle
-			isDark = UserDefaults.standard.object(forKey: "ui.isDark") as? Bool ?? isDark
+			if let rawAppearance = UserDefaults.standard.string(forKey: "ui.appearanceMode"),
+			   let mode = AppearanceMode(rawValue: rawAppearance) {
+				appearanceMode = mode
+			} else {
+				// Миграция со старой настройки isDark
+				let wasIsDark = UserDefaults.standard.object(forKey: "ui.isDark") as? Bool ?? false
+				appearanceMode = wasIsDark ? .dark : .light
+				UserDefaults.standard.set(appearanceMode.rawValue, forKey: "ui.appearanceMode")
+				UserDefaults.standard.removeObject(forKey: "ui.isDark")
+			}
 			showDockIcon = UserDefaults.standard.object(forKey: "ui.showDockIcon") as? Bool ?? showDockIcon
 			showMenuBarIcon = UserDefaults.standard.object(forKey: "ui.showMenuBarIcon") as? Bool ?? showMenuBarIcon
 			AppUIManager.shared.setDockIconVisible(showDockIcon)
 			AppUIManager.shared.setMenuBarIconVisible(showMenuBarIcon)
 		}
-		.onChange(of: isDark) { UserDefaults.standard.set($0, forKey: "ui.isDark") }
+		.onChange(of: appearanceMode) { UserDefaults.standard.set($0.rawValue, forKey: "ui.appearanceMode") }
 		.onChange(of: showDockIcon) { UserDefaults.standard.set($0, forKey: "ui.showDockIcon") }
 		.onChange(of: showMenuBarIcon) { UserDefaults.standard.set($0, forKey: "ui.showMenuBarIcon") }
 		.onExitCommand { withAnimation { showingSettings = false } }
@@ -163,6 +173,17 @@ struct ContentView: View {
 				}
 				.help(NSLocalizedString("Открыть настройки (⌘,)", comment: ""))
 			}
+		}
+	}
+
+	private func resolvedColorScheme() -> ColorScheme? {
+		switch appearanceMode {
+		case .light:
+			return .light
+		case .dark:
+			return .dark
+		case .auto:
+			return nil // Позволяет системе определить тему автоматически
 		}
 	}
 }

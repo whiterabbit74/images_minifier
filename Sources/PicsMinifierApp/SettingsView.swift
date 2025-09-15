@@ -9,7 +9,7 @@ struct SettingsView: View {
     @AppStorage("settings.convertToSRGB") private var convertToSRGB: Bool = false
     @AppStorage("settings.enableGifsicle") private var enableGifsicle: Bool = true
     @AppStorage("settings.maxDimension") private var maxDimension: Double = 0
-    @AppStorage("ui.isDark") private var isDark: Bool = false
+    @AppStorage("ui.appearanceMode") private var appearanceModeRaw: String = AppearanceMode.auto.rawValue
     @AppStorage("ui.showDockIcon") private var showDockIcon: Bool = true
     @AppStorage("ui.showMenuBarIcon") private var showMenuBarIcon: Bool = true
     @AppStorage("ui.showOnlyWithGain") private var showOnlyWithGain: Bool = false
@@ -44,12 +44,34 @@ struct SettingsView: View {
                 GroupBox(label: Label("Внешний вид", systemImage: "eye.fill")
                     .foregroundColor(.blue)) {
                     VStack(alignment: .leading, spacing: 12) {
-                        // Тёмная тема
-                        HStack {
-                            Toggle(NSLocalizedString("Тёмная тема", comment: ""), isOn: $isDark)
-                                .onChange(of: isDark) { _ in notify() }
-                                .toggleStyle(.switch)
-                            Spacer()
+                        // Режим оформления
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Режим оформления")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Picker("", selection: Binding(
+                                get: { AppearanceMode(rawValue: appearanceModeRaw) ?? .auto },
+                                set: {
+                                    appearanceModeRaw = $0.rawValue
+                                    notify()
+                                }
+                            )) {
+                                HStack {
+                                    Image(systemName: "sun.max.fill")
+                                    Text(NSLocalizedString("Светлая", comment: ""))
+                                }.tag(AppearanceMode.light)
+
+                                HStack {
+                                    Image(systemName: "moon.fill")
+                                    Text(NSLocalizedString("Тёмная", comment: ""))
+                                }.tag(AppearanceMode.dark)
+
+                                HStack {
+                                    Image(systemName: "circle.lefthalf.filled")
+                                    Text(NSLocalizedString("Как в системе", comment: ""))
+                                }.tag(AppearanceMode.auto)
+                            }
+                            .pickerStyle(.radioGroup)
                         }
 
                         Divider()
