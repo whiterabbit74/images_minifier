@@ -1,0 +1,75 @@
+"Файл" = "File";
+"Выбрать файлы…" = "Choose files…";
+"Выбрать папку…" = "Choose folder…";
+"Отмена" = "Cancel";
+"О программе PicsMinifier" = "About PicsMinifier";
+"Настройки…" = "Settings…";
+
+"Открыть настройки…" = "Open Settings…";
+"Открыть папку логов" = "Open logs folder";
+"Открыть CSV лог" = "Open CSV log";
+"Выйти" = "Quit";
+
+"Интерфейс" = "Interface";
+"Тёмная тема" = "Dark mode";
+"Иконка в Dock" = "Dock icon";
+"Иконка в меню-баре" = "Menu bar icon";
+"Только с экономией" = "Only with size saving";
+
+"Сжатие" = "Compression";
+"Пресет" = "Preset";
+"Качество" = "Quality";
+"Баланс" = "Balanced";
+"Экономия" = "Saving";
+"Авто" = "Auto";
+"Способ сохранения" = "Save mode";
+"Суффикс _compressed" = "Suffix _compressed";
+"Папка Compressor" = "Compressor folder";
+"Перезапись" = "Overwrite";
+"Перезапись оригиналов" = "Overwrite originals";
+"Продолжить" = "Continue";
+"Файлы будут перезаписаны без возможности восстановления. Вы уверены?" = "Files will be overwritten and cannot be restored. Are you sure?";
+
+"Сохранять метаданные" = "Preserve metadata";
+"Конвертировать в sRGB" = "Convert to sRGB";
+"Оптимизировать GIF (gifsicle)" = "Optimize GIF (gifsicle)";
+
+"Макс. сторона, px" = "Max side, px";
+"0 — без ограничения" = "0 — no limit";
+
+"Логи" = "Logs";
+"Сбросить статистику" = "Reset statistics";
+
+"Окружение" = "Environment";
+"Проверить WebP" = "Check WebP";
+"Системный кодек WebP доступен" = "System WebP codec available";
+"Встроенный WebP доступен" = "Embedded WebP available";
+"WebP не доступен" = "WebP not available";
+
+"Проверить gifsicle" = "Check gifsicle";
+"gifsicle не найден" = "gifsicle not found";
+"gifsicle: %@" = "gifsicle: %@";
+
+"Сбросить статистику?" = "Reset statistics?";
+"Будут обнулены счётчики и удалён CSV лог. Действие необратимо." = "Counters will be reset and the CSV log deleted. This action cannot be undone.";
+"Сбросить" = "Reset";
+
+"Закрыть настройки" = "Close settings";
+"Перетащите сюда файлы или папки" = "Drag files or folders here";
+"Файлов обработано: %lld" = "Files processed: %lld";
+"Экономия за сессию: %@" = "Saved this session: %@";
+"Прогресс партии" = "Batch progress";
+"Всего в партии: %lld. Осталось: %lld" = "Total in batch: %lld. Remaining: %lld";
+"Идёт обработка…" = "Processing…";
+"Открыть файлы для сжатия (⌘O)" = "Open files for compression (⌘O)";
+"Выбрать папку для сжатия (⇧⌘O)" = "Choose folder for compression (⇧⌘O)";
+"Отменить текущую партию (Esc)" = "Cancel current batch (Esc)";
+"За всё время: файлов — %lld" = "All time: files — %lld";
+"Экономия: %@" = "Saved: %@";
+"Открыть настройки (⌘,)" = "Open Settings (⌘,)";
+"Настройки" = "Settings";
+"или используйте кнопки ниже" = "or use the buttons below";
+"Поддерживаются: JPEG, PNG, HEIC, GIF" = "Supported: JPEG, PNG, HEIC, GIF";
+"Статистика" = "Statistics";
+"Диагностика" = "Diagnostics";
+

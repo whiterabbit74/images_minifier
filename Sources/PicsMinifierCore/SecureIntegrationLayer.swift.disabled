@@ -1,0 +1,394 @@
+import Foundation
+
+/// Integration layer that combines all secure components
+public final class SecureIntegrationLayer {
+    public static let shared = SecureIntegrationLayer()
+
+    // MARK: - Components
+
+    private let configManager = ConfigurationManager.shared
+    private let statsStore = SafeStatsStore.shared
+    private let secureCompressor = SecureImageCompressor()
+    private let performanceProcessor = PerformanceOptimizedImageProcessor()
+    private let processingManager: SafeProcessingManager
+
+    private var logger: SafeCSVLogger?
+
+    private init() {
+        self.processingManager = SafeProcessingManager()
+        setupLogging()
+        validateEnvironment()
+    }
+
+    // MARK: - Public Interface
+
+    /// Primary compression function with all security and performance enhancements
+    public func compressFiles(
+        urls: [URL],
+        settings: AppSettings,
+        completion: @escaping (CompressionResult) -> Void
+    ) {
+        Task {
+            let result = await performSecureCompression(urls: urls, settings: settings)
+            DispatchQueue.main.async {
+                completion(result)
+            }
+        }
+    }
+
+    /// Get comprehensive system status
+    public func getSystemStatus() -> SystemStatus {
+        let toolAvailability = configManager.checkToolAvailability()
+        let configIssues = configManager.validateConfiguration()
+        let stats = statsStore.exportStats()
+
+        return SystemStatus(
+            toolAvailability: toolAvailability,
+            configurationIssues: configIssues,
+            processedFiles: stats.processedCount,
+            totalSavedBytes: stats.totalSavedBytes,
+            isProcessing: processingManager.isProcessing,
+            memoryUsage: getCurrentMemoryUsage()
+        )
+    }
+
+    /// Install missing tools (returns installation instructions)
+    public func getInstallationInstructions() -> [String] {
+        return configManager.getInstallationInstructions()
+    }
+
+    // MARK: - Core Processing
+
+    private func performSecureCompression(urls: [URL], settings: AppSettings) async -> CompressionResult {
+        let startTime = Date()
+        var results: [ProcessResult] = []
+        var errors: [CompressionError] = []
+
+        // Pre-flight checks
+        let preflightResult = performPreflightChecks(urls: urls)
+        if !preflightResult.isValid {
+            return CompressionResult(
+                results: [],
+                errors: preflightResult.errors,
+                duration: Date().timeIntervalSince(startTime),
+                totalSavedBytes: 0
+            )
+        }
+
+        // Select optimal processing strategy based on file count and sizes
+        let strategy = selectProcessingStrategy(for: urls)
+
+        switch strategy {
+        case .secure:
+            // Use secure compressor for sensitive/large files
+            for url in urls {
+                do {
+                    let result = await secureCompressor.compressFile(at: url, settings: settings)
+                    results.append(result)
+
+                    if let logger = logger {
+                        logger.log(result)
+                    }
+
+                    // Update stats for successful compressions
+                    if result.status == "ok" {
+                        let savedBytes = max(0, result.originalSizeBytes - result.newSizeBytes)
+                        if savedBytes > 0 {
+                            statsStore.addSavedBytes(savedBytes)
+                        }
+                        statsStore.addProcessedFile()
+                    }
+                } catch {
+                    errors.append(CompressionError.processingFailed(url: url, error: error))
+                }
+            }
+
+        case .performance:
+            // Use performance processor for batch operations
+            return await withCheckedContinuation { continuation in
+                performanceProcessor.processImages(
+                    urls: urls,
+                    settings: settings,
+                    progressHandler: { current, total in
+                        // Progress updates are handled by the processor
+                    },
+                    completion: { processorResults in
+                        let compressionResult = CompressionResult(
+                            results: processorResults,
+                            errors: [],
+                            duration: Date().timeIntervalSince(startTime),
+                            totalSavedBytes: processorResults.reduce(0) { total, result in
+                                return total + max(0, result.originalSizeBytes - result.newSizeBytes)
+                            }
+                        )
+                        continuation.resume(returning: compressionResult)
+                    }
+                )
+            }
+
+        case .hybrid:
+            // Mix of both approaches based on file characteristics
+            return await processWithHybridStrategy(urls: urls, settings: settings, startTime: startTime)
+        }
+
+        let totalSavedBytes = results.reduce(0) { total, result in
+            return total + max(0, result.originalSizeBytes - result.newSizeBytes)
+        }
+
+        return CompressionResult(
+            results: results,
+            errors: errors,
+            duration: Date().timeIntervalSince(startTime),
+            totalSavedBytes: totalSavedBytes
+        )
+    }
+
+    // MARK: - Strategy Selection
+
+    private enum ProcessingStrategy {
+        case secure    // For security-critical or large files
+        case performance // For batch operations
+        case hybrid    // Mix based on file characteristics
+    }
+
+    private func selectProcessingStrategy(for urls: [URL]) -> ProcessingStrategy {
+        let fileCount = urls.count
+        let totalSize = urls.compactMap { url in
+            try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
+        }.reduce(0, +)
+
+        // Large batch operations -> performance
+        if fileCount > 50 {
+            return .performance
+        }
+
+        // Large files -> secure
+        if totalSize > 1024 * 1024 * 1024 { // > 1GB total
+            return .secure
+        }
+
+        // Medium operations -> hybrid
+        return .hybrid
+    }
+
+    private func processWithHybridStrategy(
+        urls: [URL],
+        settings: AppSettings,
+        startTime: Date
+    ) async -> CompressionResult {
+        var results: [ProcessResult] = []
+        var errors: [CompressionError] = []
+
+        // Separate files by size
+        let largeFiles = urls.filter { url in
+            guard let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 else {
+                return false
+            }
+            return size > 50 * 1024 * 1024 // > 50MB
+        }
+
+        let smallFiles = urls.filter { !largeFiles.contains($0) }
+
+        // Process large files securely
+        for url in largeFiles {
+            let result = await secureCompressor.compressFile(at: url, settings: settings)
+            results.append(result)
+        }
+
+        // Process small files with performance processor
+        if !smallFiles.isEmpty {
+            let performanceResults = await withCheckedContinuation { continuation in
+                performanceProcessor.processImages(
+                    urls: smallFiles,
+                    settings: settings,
+                    progressHandler: { _, _ in },
+                    completion: { processorResults in
+                        continuation.resume(returning: processorResults)
+                    }
+                )
+            }
+            results.append(contentsOf: performanceResults)
+        }
+
+        let totalSavedBytes = results.reduce(0) { total, result in
+            return total + max(0, result.originalSizeBytes - result.newSizeBytes)
+        }
+
+        return CompressionResult(
+            results: results,
+            errors: errors,
+            duration: Date().timeIntervalSince(startTime),
+            totalSavedBytes: totalSavedBytes
+        )
+    }
+
+    // MARK: - Pre-flight Checks
+
+    private struct PreflightResult {
+        let isValid: Bool
+        let errors: [CompressionError]
+    }
+
+    private func performPreflightChecks(urls: [URL]) -> PreflightResult {
+        var errors: [CompressionError] = []
+
+        // Check tool availability
+        let toolAvailability = configManager.checkToolAvailability()
+        if !toolAvailability.hasModernTools {
+            errors.append(.missingTools(toolAvailability.missingTools))
+        }
+
+        // Check configuration
+        let configIssues = configManager.validateConfiguration()
+        if !configIssues.isEmpty {
+            errors.append(.configurationIssues(configIssues))
+        }
+
+        // Validate file paths
+        for url in urls {
+            do {
+                _ = try SecurityUtils.validateFilePath(url.path)
+            } catch {
+                errors.append(.invalidPath(url: url, error: error))
+            }
+        }
+
+        // Check disk space
+        if let availableSpace = getAvailableDiskSpace() {
+            let estimatedNeeded = estimateSpaceNeeded(for: urls)
+            if availableSpace < estimatedNeeded {
+                errors.append(.insufficientDiskSpace(available: availableSpace, needed: estimatedNeeded))
+            }
+        }
+
+        return PreflightResult(isValid: errors.isEmpty, errors: errors)
+    }
+
+    // MARK: - System Monitoring
+
+    private func setupLogging() {
+        let logURL = configManager.configuration.logDirectory.appendingPathComponent("secure_compression.csv")
+        logger = SafeCSVLogger(logURL: logURL)
+    }
+
+    private func validateEnvironment() {
+        let issues = configManager.validateConfiguration()
+        if !issues.isEmpty {
+            print("⚠️  Environment validation issues:")
+            for issue in issues {
+                print("   - \(issue)")
+            }
+        }
+
+        let toolAvailability = configManager.checkToolAvailability()
+        if !toolAvailability.hasModernTools {
+            print("⚠️  Missing compression tools: \(toolAvailability.missingTools.joined(separator: ", "))")
+        }
+    }
+
+    private func getCurrentMemoryUsage() -> UInt64 {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+
+        return result == KERN_SUCCESS ? UInt64(info.resident_size) : 0
+    }
+
+    private func getAvailableDiskSpace() -> Int64? {
+        do {
+            let tempDir = FileManager.default.temporaryDirectory
+            let resourceValues = try tempDir.resourceValues(forKeys: [.volumeAvailableCapacityKey])
+            return resourceValues.volumeAvailableCapacity.map { Int64($0) }
+        } catch {
+            return nil
+        }
+    }
+
+    private func estimateSpaceNeeded(for urls: [URL]) -> Int64 {
+        // Conservative estimate: 50% of original size for temporary files
+        let totalSize = urls.compactMap { url in
+            try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
+        }.reduce(0, +)
+
+        return totalSize / 2
+    }
+}
+
+// MARK: - Data Structures
+
+public struct CompressionResult {
+    public let results: [ProcessResult]
+    public let errors: [CompressionError]
+    public let duration: TimeInterval
+    public let totalSavedBytes: Int64
+
+    public var successCount: Int {
+        return results.filter { $0.status == "ok" }.count
+    }
+
+    public var errorCount: Int {
+        return results.filter { $0.status == "error" || $0.status == "skipped" }.count + errors.count
+    }
+
+    public var compressionRatio: Double {
+        let totalOriginal = results.reduce(0) { $0 + $1.originalSizeBytes }
+        let totalNew = results.reduce(0) { $0 + $1.newSizeBytes }
+        return totalOriginal > 0 ? Double(totalNew) / Double(totalOriginal) : 1.0
+    }
+}
+
+public struct SystemStatus {
+    public let toolAvailability: ConfigurationManager.ToolAvailability
+    public let configurationIssues: [String]
+    public let processedFiles: Int
+    public let totalSavedBytes: Int64
+    public let isProcessing: Bool
+    public let memoryUsage: UInt64
+
+    public var isHealthy: Bool {
+        return toolAvailability.hasModernTools && configurationIssues.isEmpty
+    }
+
+    public var memoryUsageMB: Double {
+        return Double(memoryUsage) / 1024.0 / 1024.0
+    }
+}
+
+public enum CompressionError: Error, LocalizedError {
+    case missingTools([String])
+    case configurationIssues([String])
+    case invalidPath(url: URL, error: Error)
+    case insufficientDiskSpace(available: Int64, needed: Int64)
+    case processingFailed(url: URL, error: Error)
+
+    public var errorDescription: String? {
+        switch self {
+        case .missingTools(let tools):
+            return "Missing compression tools: \(tools.joined(separator: ", "))"
+        case .configurationIssues(let issues):
+            return "Configuration issues: \(issues.joined(separator: "; "))"
+        case .invalidPath(let url, let error):
+            return "Invalid path \(url.path): \(error.localizedDescription)"
+        case .insufficientDiskSpace(let available, let needed):
+            return "Insufficient disk space: \(available / 1024 / 1024)MB available, \(needed / 1024 / 1024)MB needed"
+        case .processingFailed(let url, let error):
+            return "Failed to process \(url.lastPathComponent): \(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - Memory Info (reused from SafeProcessingManager)
+private struct mach_task_basic_info {
+    var virtual_size: mach_vm_size_t = 0
+    var resident_size: mach_vm_size_t = 0
+    var resident_size_max: mach_vm_size_t = 0
+    var user_time: time_value_t = time_value_t()
+    var system_time: time_value_t = time_value_t()
+    var policy: policy_t = 0
+    var suspend_count: integer_t = 0
+}

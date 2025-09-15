@@ -1,0 +1,182 @@
+import Foundation
+
+/// Thread-safe processing manager with proper resource management
+@MainActor
+public final class SafeProcessingManager: ObservableObject {
+    public static let shared = SafeProcessingManager()
+
+    @Published public private(set) var isProcessing = false
+    @Published public private(set) var progress: Double = 0.0
+    @Published public private(set) var currentFile = ""
+    @Published public private(set) var processedCount = 0
+    @Published public private(set) var totalCount = 0
+
+    private var currentTask: Task<Void, Never>?
+    private let maxConcurrentOperations = max(2, ProcessInfo.processInfo.processorCount - 1)
+    private let maxMemoryThreshold: UInt64 = 2 * 1024 * 1024 * 1024 // 2GB
+
+    private init() {}
+
+    public func process(urls: [URL], settings: AppSettings) {
+        // Cancel any existing operation
+        currentTask?.cancel()
+
+        currentTask = Task {
+            await performProcessing(urls: urls, settings: settings)
+        }
+    }
+
+    public func cancelProcessing() {
+        currentTask?.cancel()
+        Task { @MainActor in
+            self.isProcessing = false
+            self.progress = 0.0
+            self.currentFile = ""
+            self.processedCount = 0
+            self.totalCount = 0
+        }
+    }
+
+    private func performProcessing(urls: [URL], settings: AppSettings) async {
+        await MainActor.run {
+            self.isProcessing = true
+            self.progress = 0.0
+            self.processedCount = 0
+            self.totalCount = urls.count
+        }
+
+        // Create secure compressor
+        let compressor = SecureImageCompressor()
+        let logger = SafeCSVLogger(logURL: AppPaths.logCSVURL())
+
+        // Process files with controlled concurrency
+        await withTaskGroup(of: ProcessResult?.self) { group in
+            var activeCount = 0
+            var urlIndex = 0
+
+            while urlIndex < urls.count && !Task.isCancelled {
+                // Memory pressure check
+                if await checkMemoryPressure() {
+                    // Wait for some tasks to complete before continuing
+                    if let result = await group.next() {
+                        handleResult(result, logger: logger)
+                        activeCount -= 1
+                    }
+                    continue
+                }
+
+                // Limit concurrent operations
+                if activeCount < maxConcurrentOperations && urlIndex < urls.count {
+                    let url = urls[urlIndex]
+                    urlIndex += 1
+
+                    group.addTask {
+                        guard !Task.isCancelled else { return nil }
+
+                        await MainActor.run {
+                            self.currentFile = url.lastPathComponent
+                        }
+
+                        let result = await compressor.compressFile(at: url, settings: settings)
+                        return result
+                    }
+                    activeCount += 1
+                } else {
+                    // Wait for a task to complete
+                    if let result = await group.next() {
+                        handleResult(result, logger: logger)
+                        activeCount -= 1
+
+                        await MainActor.run {
+                            self.processedCount += 1
+                            self.progress = Double(self.processedCount) / Double(self.totalCount)
+                        }
+                    }
+                }
+            }
+
+            // Wait for remaining tasks
+            for await result in group {
+                guard !Task.isCancelled else { break }
+                handleResult(result, logger: logger)
+
+                await MainActor.run {
+                    self.processedCount += 1
+                    self.progress = Double(self.processedCount) / Double(self.totalCount)
+                }
+            }
+        }
+
+        await MainActor.run {
+            self.isProcessing = false
+            self.currentFile = ""
+            self.progress = 1.0
+        }
+
+        // Post completion notification
+        NotificationCenter.default.post(name: .processingCompleted, object: nil)
+    }
+
+    private func handleResult(_ result: ProcessResult?, logger: SafeCSVLogger) {
+        guard let result = result else { return }
+
+        // Log the result
+        logger.log(result)
+
+        // Update statistics if successful
+        if result.status == "ok" {
+            let savedBytes = max(0, result.originalSizeBytes - result.newSizeBytes)
+            if savedBytes > 0 {
+                SafeStatsStore.shared.updateStats(processedFiles: 1, savedBytes: savedBytes)
+            }
+        }
+    }
+
+    private func checkMemoryPressure() async -> Bool {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+
+        if result == KERN_SUCCESS {
+            let memoryUsage = UInt64(info.resident_size)
+            return memoryUsage > maxMemoryThreshold
+        }
+
+        return false
+    }
+
+    // MARK: - State Management
+
+    public var isIdle: Bool {
+        return !isProcessing && currentTask == nil
+    }
+
+    public func getProgress() -> (current: Int, total: Int, percentage: Double) {
+        return (processedCount, totalCount, progress)
+    }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let processingCompleted = Notification.Name("processingCompleted")
+    static let processingProgress = Notification.Name("processingProgress")
+    static let processingError = Notification.Name("processingError")
+}
+
+// MARK: - Memory Info Structure
+
+private struct mach_task_basic_info {
+    var virtual_size: mach_vm_size_t = 0
+    var resident_size: mach_vm_size_t = 0
+    var resident_size_max: mach_vm_size_t = 0
+    var user_time: time_value_t = time_value_t()
+    var system_time: time_value_t = time_value_t()
+    var policy: policy_t = 0
+    var suspend_count: integer_t = 0
+}

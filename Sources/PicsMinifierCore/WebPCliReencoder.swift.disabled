@@ -1,0 +1,213 @@
+import Foundation
+import UniformTypeIdentifiers
+import Darwin
+
+public final class WebPCliReencoder {
+    public init() {}
+
+    public func reencode(inputURL: URL, outputURL: URL, quality: Int, preserveMetadata: Bool) -> ProcessResult {
+        let fm = FileManager.default
+
+        // Secure error handling with proper propagation
+        do {
+            let originalSize = (try fm.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
+            let resVals = try inputURL.resourceValues(forKeys: [.contentTypeKey])
+            let sourceType = resVals.contentType
+            let sourceFormat = sourceType?.preferredFilenameExtension ?? inputURL.pathExtension.lowercased()
+
+            guard let cwebp = try locateSecureTool("cwebp") else {
+                return ProcessResult(
+                    sourceFormat: sourceFormat,
+                    targetFormat: sourceFormat,
+                    originalPath: inputURL.path,
+                    outputPath: inputURL.path,
+                    originalSizeBytes: originalSize,
+                    newSizeBytes: originalSize,
+                    status: "skipped",
+                    reason: "webp-cli-not-found"
+                )
+            }
+
+            // Use secure temporary directory
+            let tmpDir = try SecurityUtils.createSecureTempDirectory()
+            defer {
+                try? fm.removeItem(at: tmpDir)
+            }
+
+            let tmpEncoded = tmpDir.appendingPathComponent("encoded.webp")
+
+            // Validate and sanitize arguments
+            let qualityStr = String(max(0, min(100, quality))) // Clamp quality to valid range
+            var args: [String] = [inputURL.path, "-q", qualityStr, "-quiet"]
+            if preserveMetadata {
+                args += ["-metadata", "all"]
+            } else {
+                args += ["-metadata", "none"]
+            }
+            args += ["-o", tmpEncoded.path]
+
+            // Execute with security controls and timeout
+            let result: SecurityUtils.ProcessResult
+            if #available(macOS 13.0, *) {
+                result = try await SecurityUtils.executeSecureProcess(
+                    executable: cwebp,
+                    arguments: args,
+                    timeout: 60.0 // 1 minute timeout for WebP encoding
+                )
+            } else {
+                // Fallback for older macOS versions
+                let process = Process()
+                process.executableURL = cwebp
+                process.arguments = try SecurityUtils.sanitizeProcessArguments(args)
+                process.standardOutput = Pipe()
+                process.standardError = Pipe()
+                try process.run()
+                process.waitUntilExit()
+                result = SecurityUtils.ProcessResult(
+                    terminationStatus: process.terminationStatus,
+                    stdout: "",
+                    stderr: ""
+                )
+            }
+
+            guard result.isSuccess, fm.fileExists(atPath: tmpEncoded.path) else {
+                return ProcessResult(
+                    sourceFormat: sourceFormat,
+                    targetFormat: sourceFormat,
+                    originalPath: inputURL.path,
+                    outputPath: inputURL.path,
+                    originalSizeBytes: originalSize,
+                    newSizeBytes: originalSize,
+                    status: "skipped",
+                    reason: "cwebp-failed: \(result.stderr)"
+                )
+            }
+
+            // Atomic move to final destination
+            try fm.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+            if fm.fileExists(atPath: outputURL.path) {
+                try fm.removeItem(at: outputURL)
+            }
+            try fm.moveItem(at: tmpEncoded, to: outputURL)
+
+            let newSize = (try fm.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+            let saved = max(0, originalSize - newSize)
+
+            return ProcessResult(
+                sourceFormat: sourceFormat,
+                targetFormat: sourceFormat,
+                originalPath: inputURL.path,
+                outputPath: outputURL.path,
+                originalSizeBytes: originalSize,
+                newSizeBytes: newSize,
+                status: "ok",
+                reason: saved > 0 ? nil : "no-gain"
+            )
+
+        } catch {
+            return ProcessResult(
+                sourceFormat: "webp",
+                targetFormat: "webp",
+                originalPath: inputURL.path,
+                outputPath: inputURL.path,
+                originalSizeBytes: 0,
+                newSizeBytes: 0,
+                status: "skipped",
+                reason: "security-error: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func locateSecureTool(_ tool: String) throws -> URL? {
+        let fm = FileManager.default
+        var candidates: [URL] = []
+
+        // Environment override with security validation
+        if let env = ProcessInfo.processInfo.environment["PICS_\(tool.uppercased())_PATH"] {
+            let validatedPath = try SecurityUtils.validateFilePath(env)
+            let url = URL(fileURLWithPath: validatedPath)
+            if try validateExecutableSecurity(url) { return url }
+            throw SecurityError.invalidExecutable
+        }
+
+        // App bundle resource (if available at runtime)
+        if let base = Bundle.main.resourceURL?.appendingPathComponent("webp") {
+            candidates.append(base.appendingPathComponent(tool))
+        }
+
+        // Project root (dev) - only in debug builds
+        #if DEBUG
+        let projectTool = URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent("webp").appendingPathComponent(tool)
+        candidates.append(projectTool)
+        #endif
+
+        // System paths with security validation
+        let systemPaths = [
+            "/opt/homebrew/bin/\(tool)",
+            "/usr/local/bin/\(tool)",
+            "/usr/bin/\(tool)" // Add system path for robustness
+        ]
+
+        for path in systemPaths {
+            do {
+                let validatedPath = try SecurityUtils.validateFilePath(path)
+                candidates.append(URL(fileURLWithPath: validatedPath))
+            } catch {
+                // Skip invalid paths
+                continue
+            }
+        }
+
+        for url in candidates {
+            do {
+                if try validateExecutableSecurity(url) { return url }
+            } catch {
+                // Skip invalid executables
+                continue
+            }
+        }
+        return nil
+    }
+
+    private func validateExecutableSecurity(_ url: URL) throws -> Bool {
+        let fm = FileManager.default
+
+        // Check if file exists
+        guard fm.fileExists(atPath: url.path) else {
+            return false
+        }
+
+        // Validate path security
+        _ = try SecurityUtils.validateFilePath(url.path)
+
+        // Check if it's a regular file (not a symlink or special file)
+        let attributes = try fm.attributesOfItem(atPath: url.path)
+        guard let fileType = attributes[.type] as? FileAttributeType,
+              fileType == .typeRegular else {
+            throw SecurityError.invalidExecutable
+        }
+
+        // Check if readable and executable
+        guard fm.isReadableFile(atPath: url.path) else {
+            return false
+        }
+
+        // Make executable if needed (only for user-owned files)
+        if !fm.isExecutableFile(atPath: url.path) {
+            let currentUser = getuid()
+            if let owner = attributes[.ownerAccountID] as? NSNumber,
+               owner.uint32Value == currentUser {
+                // Only set executable for user-owned files
+                try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            } else {
+                // Don't modify files we don't own
+                return false
+            }
+        }
+
+        return fm.isExecutableFile(atPath: url.path)
+    }
+}
+
+

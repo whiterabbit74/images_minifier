@@ -1,0 +1,283 @@
+import Foundation
+import ImageIO
+import UniformTypeIdentifiers
+import CoreGraphics
+
+public final class CompressionService {
+	public init() {}
+
+	public func compressFile(at inputURL: URL, settings: AppSettings) -> ProcessResult {
+		let fm = FileManager.default
+		let originalSize = (try? fm.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
+		let resVals = try? inputURL.resourceValues(forKeys: [.contentTypeKey])
+		let sourceType = resVals?.contentType
+		let sourceFormat = sourceType?.preferredFilenameExtension ?? inputURL.pathExtension.lowercased()
+
+		guard let utType = sourceType else {
+			return ProcessResult(
+				sourceFormat: sourceFormat,
+				targetFormat: sourceFormat,
+				originalPath: inputURL.path,
+				outputPath: inputURL.path,
+				originalSizeBytes: originalSize,
+				newSizeBytes: originalSize,
+				status: "skipped",
+				reason: "unknown-content-type"
+			)
+		}
+
+		// Определяем выходной путь (режим сохранения)
+		let outputURL = Self.computeOutputURL(for: inputURL, mode: settings.saveMode)
+
+		// Компрессия по формату без изменения контейнера
+		let result: ProcessResult
+		if utType.conforms(to: .jpeg) {
+			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.jpeg.identifier as CFString, quality: qualityFor(settings.preset), tiffLZW: false, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+		} else if utType.conforms(to: .png) {
+			// PNG: попытка lossless через ImageIO (уровень zlib недоступен публично)
+			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.png.identifier as CFString, quality: nil, tiffLZW: false, pngLossless: true, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+		} else if utType.conforms(to: .heic) || utType.conforms(to: .heif) {
+			let heicUT: CFString = (utType.conforms(to: .heic) ? UTType.heic.identifier : UTType.heif.identifier) as CFString
+			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: heicUT, quality: qualityFor(settings.preset), tiffLZW: false, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+		} else if utType.conforms(to: .tiff) {
+			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.tiff.identifier as CFString, quality: nil, tiffLZW: true, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+		} else if utType.conforms(to: UTType(importedAs: "org.webmproject.webp")) {
+			// WebP: системный кодек (если есть) → иначе встроенный libwebp (после вендоринга)
+			let encoder = WebPEncoder()
+			switch encoder.availability() {
+			case .systemCodec:
+				result = reencodeImageIO(
+					inputURL: inputURL,
+					outputURL: outputURL,
+					destUTType: UTType(importedAs: "org.webmproject.webp").identifier as CFString,
+					quality: qualityFor(settings.preset),
+					tiffLZW: false,
+					pngLossless: false,
+					preserveMetadata: settings.preserveMetadata,
+					convertToSRGB: settings.convertToSRGB,
+					maxDimension: settings.maxDimension
+				)
+			case .embedded:
+				result = reencodeWebPWithEmbedded(inputURL: inputURL, outputURL: outputURL, preset: settings.preset, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+			case .unavailable:
+				// WebPCliReencoder temporarily disabled
+				// if ProcessInfo.processInfo.environment["PICS_FORCE_WEBP_CLI"] == "1" {
+				//     let cli = WebPCliReencoder()
+				//     let out = (settings.saveMode == .overwrite) ? inputURL : outputURL
+				//     result = cli.reencode(inputURL: inputURL, outputURL: out, quality: Int(webPQuality(for: settings.preset)), preserveMetadata: settings.preserveMetadata)
+				//     break
+				// }
+				result = ProcessResult(
+					sourceFormat: sourceFormat,
+					targetFormat: sourceFormat,
+					originalPath: inputURL.path,
+					outputPath: inputURL.path,
+					originalSizeBytes: originalSize,
+					newSizeBytes: originalSize,
+					status: "skipped",
+					reason: "webp-encoder-unavailable"
+				)
+			}
+		} else if utType.conforms(to: .gif) {
+			if settings.enableGifsicle {
+				let optimizer = GifsicleOptimizer()
+				let out = (settings.saveMode == .overwrite) ? inputURL : outputURL
+				result = optimizer.optimize(inputURL: inputURL, outputURL: out)
+			} else {
+				result = ProcessResult(
+					sourceFormat: sourceFormat,
+					targetFormat: sourceFormat,
+					originalPath: inputURL.path,
+					outputPath: inputURL.path,
+					originalSizeBytes: originalSize,
+					newSizeBytes: originalSize,
+					status: "skipped",
+					reason: "gifsicle-disabled"
+				)
+			}
+		} else {
+			// BMP/TGA и др.: без конверсий — пропуск, если недоступна компрессия
+			result = ProcessResult(
+				sourceFormat: sourceFormat,
+				targetFormat: sourceFormat,
+				originalPath: inputURL.path,
+				outputPath: inputURL.path,
+				originalSizeBytes: originalSize,
+				newSizeBytes: originalSize,
+				status: "skipped",
+				reason: "format-not-compressible-without-conversion"
+			)
+		}
+
+		// Обновим агрегаты при успехе уменьшения
+		let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
+		if saved > 0 && result.status == "ok" {
+			StatsStore.shared.addSavedBytes(saved)
+		}
+		return result
+	}
+
+	private func qualityFor(_ preset: CompressionPreset) -> Double {
+		switch preset {
+		case .quality: return 0.92
+		case .balanced: return 0.85
+		case .saving: return 0.75
+		case .auto: return 0.85
+		}
+	}
+
+	private func reencodeImageIO(inputURL: URL, outputURL: URL, destUTType: CFString, quality: Double?, tiffLZW: Bool, pngLossless: Bool, preserveMetadata: Bool, convertToSRGB: Bool, maxDimension: Int?) -> ProcessResult {
+		let fm = FileManager.default
+		let originalSize = (try? fm.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
+		let resVals = try? inputURL.resourceValues(forKeys: [.contentTypeKey])
+		let sourceType = resVals?.contentType
+		let sourceFormat = sourceType?.preferredFilenameExtension ?? inputURL.pathExtension.lowercased()
+
+		guard let src = CGImageSourceCreateWithURL(inputURL as CFURL, nil) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-source-failed")
+		}
+		guard let baseImage = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-create-failed")
+		}
+		let srcWidth = baseImage.width
+		let srcHeight = baseImage.height
+		let useSRGB = convertToSRGB
+		let colorSpace: CGColorSpace = useSRGB ? (CGColorSpace(name: CGColorSpace.sRGB) ?? (baseImage.colorSpace ?? CGColorSpaceCreateDeviceRGB())) : (baseImage.colorSpace ?? CGColorSpaceCreateDeviceRGB())
+		let (dstW, dstH) = scaledSize(width: srcWidth, height: srcHeight, maxDimension: maxDimension)
+		let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue))
+		let image: CGImage
+		if let ctx = CGContext(data: nil, width: dstW, height: dstH, bitsPerComponent: 8, bytesPerRow: 0, space: colorSpace, bitmapInfo: bitmapInfo.rawValue) {
+			ctx.interpolationQuality = .high
+			ctx.draw(baseImage, in: CGRect(x: 0, y: 0, width: CGFloat(dstW), height: CGFloat(dstH)))
+			image = ctx.makeImage() ?? baseImage
+		} else {
+			image = baseImage
+		}
+		let parentDir = outputURL.deletingLastPathComponent()
+		try? fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
+		guard let dest = CGImageDestinationCreateWithURL(outputURL as CFURL, destUTType, 1, nil) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-dest-create-failed")
+		}
+		var props: [CFString: Any] = [:]
+		if let q = quality { props[kCGImageDestinationLossyCompressionQuality] = q }
+		if tiffLZW {
+			props[kCGImagePropertyTIFFDictionary] = [kCGImagePropertyTIFFCompression: 5]
+		}
+		if pngLossless {
+			props[kCGImagePropertyPNGDictionary] = [:] // Уровень zlib недоступен публично
+		}
+		// Сохранение метаданных (EXIF, IPTC, GPS, TIFF, PNG)
+		if preserveMetadata, let allProps = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] {
+			var meta = allProps
+			// Удалим потенциально конфликтующие ключи качества/компрессии
+			meta.removeValue(forKey: kCGImageDestinationLossyCompressionQuality)
+			// Применим sRGB мета при конверсии цвета
+			if convertToSRGB {
+				meta[kCGImagePropertyColorModel] = kCGImagePropertyColorModelRGB
+				meta[kCGImagePropertyProfileName] = "sRGB IEC61966-2.1"
+			}
+			// Мерж исходных метаданных в props
+			for (k, v) in meta { props[k] = v }
+			// Переустановим наши параметры после мерджа
+			if let q = quality { props[kCGImageDestinationLossyCompressionQuality] = q }
+			if tiffLZW { props[kCGImagePropertyTIFFDictionary] = [kCGImagePropertyTIFFCompression: 5] }
+			if pngLossless { props[kCGImagePropertyPNGDictionary] = [:] }
+		}
+		// Если конвертируем в sRGB, но метаданные не сохраняются — всё равно укажем профиль
+		if !preserveMetadata && convertToSRGB {
+			props[kCGImagePropertyColorModel] = kCGImagePropertyColorModelRGB
+			props[kCGImagePropertyProfileName] = "sRGB IEC61966-2.1"
+		}
+		CGImageDestinationAddImage(dest, image, props as CFDictionary)
+		guard CGImageDestinationFinalize(dest) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-finalize-failed")
+		}
+		let newSize = (try? fm.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+		let saved = max(0, originalSize - newSize)
+		return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: outputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "ok", reason: saved > 0 ? nil : "no-gain")
+	}
+
+	private func reencodeWebPWithEmbedded(inputURL: URL, outputURL: URL, preset: CompressionPreset, convertToSRGB: Bool, maxDimension: Int?) -> ProcessResult {
+		let fm = FileManager.default
+		let originalSize = (try? fm.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
+		let resVals = try? inputURL.resourceValues(forKeys: [.contentTypeKey])
+		let sourceType = resVals?.contentType
+		let sourceFormat = sourceType?.preferredFilenameExtension ?? inputURL.pathExtension.lowercased()
+
+		guard let src = CGImageSourceCreateWithURL(inputURL as CFURL, nil) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-source-failed")
+		}
+		guard let baseImage = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-create-failed")
+		}
+		let srcW = baseImage.width
+		let srcH = baseImage.height
+		let (dstW, dstH) = scaledSize(width: srcW, height: srcH, maxDimension: maxDimension)
+		let colorSpace: CGColorSpace = convertToSRGB ? (CGColorSpace(name: CGColorSpace.sRGB) ?? (baseImage.colorSpace ?? CGColorSpaceCreateDeviceRGB())) : (baseImage.colorSpace ?? CGColorSpaceCreateDeviceRGB())
+		let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue))
+		guard let ctx = CGContext(data: nil, width: dstW, height: dstH, bitsPerComponent: 8, bytesPerRow: 0, space: colorSpace, bitmapInfo: bitmapInfo.rawValue) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "bitmap-context-failed")
+		}
+		ctx.interpolationQuality = .high
+		ctx.draw(baseImage, in: CGRect(x: 0, y: 0, width: CGFloat(dstW), height: CGFloat(dstH)))
+		guard let dataPtr = ctx.data else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "bitmap-data-missing")
+		}
+		let bytesPerRow = ctx.bytesPerRow
+		let byteCount = bytesPerRow * dstH
+		let rgbaData = Data(bytes: dataPtr, count: byteCount)
+		let encoder = WebPEncoder()
+		let q = webPQuality(for: preset)
+		guard let webpData = encoder.encodeRGBA(rgbaData, width: dstW, height: dstH, quality: q) else {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "embedded-webp-encode-failed")
+		}
+		try? fm.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+		do {
+			try webpData.write(to: outputURL, options: [.atomic])
+		} catch {
+			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "write-failed")
+		}
+		let newSize = (try? fm.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+		return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: outputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "ok", reason: newSize < originalSize ? nil : "no-gain")
+	}
+
+	private func webPQuality(for preset: CompressionPreset) -> Int {
+		switch preset {
+		case .quality: return 90
+		case .balanced: return 80
+		case .saving: return 70
+		case .auto: return 80
+		}
+	}
+
+	private func scaledSize(width: Int, height: Int, maxDimension: Int?) -> (Int, Int) {
+		guard let maxDim = maxDimension, maxDim > 0 else { return (width, height) }
+		let w = CGFloat(width)
+		let h = CGFloat(height)
+		let maxD = CGFloat(maxDim)
+		let scale = min(1.0, maxD / max(w, h))
+		let newW = Int((w * scale).rounded(.toNearestOrAwayFromZero))
+		let newH = Int((h * scale).rounded(.toNearestOrAwayFromZero))
+		return (max(newW, 1), max(newH, 1))
+	}
+
+	private static func computeOutputURL(for inputURL: URL, mode: SaveMode) -> URL {
+		switch mode {
+		case .suffix:
+			let ext = inputURL.pathExtension
+			let base = inputURL.deletingPathExtension().lastPathComponent
+			let dir = inputURL.deletingLastPathComponent()
+			return dir.appendingPathComponent("\(base)_compressed").appendingPathExtension(ext)
+		case .separateFolder:
+			let dir = inputURL.deletingLastPathComponent()
+			let outDir = dir.appendingPathComponent("Compressor")
+			let ext = inputURL.pathExtension
+			let base = inputURL.deletingPathExtension().lastPathComponent
+			return outDir.appendingPathComponent("\(base)").appendingPathExtension(ext)
+		case .overwrite:
+			return inputURL
+		}
+	}
+}
+
+
