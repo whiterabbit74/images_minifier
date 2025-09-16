@@ -74,20 +74,22 @@ export GIFSICLE_PATH="/custom/path/to/gifsicle"
 
 ```
 PicsMinifier/
+├── Docs/                           # Historical reports and AI guidance
+├── Resources/
+│   ├── AppIcons/                   # Icon assets and menu bar PDFs
+│   └── ManualTests/
+│       ├── Images/                 # Sample inputs for manual compression tests
+│       └── Results/                # Output artifacts produced by scripts
+├── Scripts/
+│   ├── build.sh                    # Release build helper
+│   ├── create_app.sh               # macOS bundle assembly
+│   ├── create_icons.sh             # Iconset generation
+│   └── manual/                     # Swift scripts for optional tool checks
 ├── Sources/
 │   ├── PicsMinifierCore/           # Core compression logic
-│   │   ├── SmartCompressor.swift   # Modern compression engine
-│   │   ├── SecurityUtils.swift     # Security validation layer
-│   │   ├── SecureIntegrationLayer.swift # Main API interface
-│   │   └── Models.swift            # Data structures
 │   ├── PicsMinifierApp/            # SwiftUI application
-│   │   ├── ContentView.swift       # Main interface
-│   │   ├── SimpleSettingsView.swift # Configuration UI
-│   │   └── ProcessingManager.swift # Background processing
-│   └── ThirdParty/
-│       └── WebPShims/              # WebP integration layer
-├── Tests/                          # Unit tests
-└── Documentation/                  # Additional docs
+│   └── ThirdParty/                 # Embedded WebP shims
+└── Tests/                          # Unit tests
 ```
 
 ### Compression Pipeline
@@ -115,8 +117,9 @@ graph TD
 
 1. **Launch Application**
    ```bash
-   ./.build/debug/PicsMinifierApp
+   ./Scripts/run_app.sh
    ```
+   The helper script builds the debug binary if required and launches the SwiftUI app.
 
 2. **Drag and Drop** images or folders onto the application window
 
@@ -126,6 +129,13 @@ graph TD
    - **Advanced Options**: Metadata preservation, sRGB conversion
 
 4. **View Results** in real-time with compression statistics
+
+### Helper Scripts
+
+- `Scripts/build.sh` – builds the project in release configuration.
+- `Scripts/create_app.sh` – assembles a distributable `.app` bundle with bundled assets.
+- `Scripts/create_icons.sh` – regenerates the asset catalog from `Resources/AppIcons/icons.icns`.
+- `Scripts/manual/test_smart_compression.swift` – optional macOS-only sanity check for external compression tools.
 
 ### Command Line Integration
 
