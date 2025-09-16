@@ -18,7 +18,7 @@ struct ContentView: View {
         @State var sessionStats: SessionStats = .init()
         @State var showingSettings: Bool = false
         @State var isProcessing: Bool = false
-        @State private var progressObserverTokens: [NSObjectProtocol] = []
+	@State var progressObserverTokens: [NSObjectProtocol] = []
 
 	var body: some View {
 		ZStack(alignment: .topTrailing) {
@@ -315,5 +315,4 @@ struct AppearanceModifier: ViewModifier {
         }
     }
 }
-
 

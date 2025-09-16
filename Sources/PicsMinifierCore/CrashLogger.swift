@@ -1,5 +1,11 @@
 import Foundation
 
+private struct CrashLoggerMessageError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? { message }
+}
+
 #if canImport(os.log)
 import os.log
 
@@ -31,6 +37,10 @@ public final class CrashLogger {
 
         // Пишем в файл
         appendToFile(message)
+    }
+
+    public func logError(_ message: String, context: String = "") {
+        logError(CrashLoggerMessageError(message: message), context: context)
     }
 
     /// Логирует предупреждение
@@ -96,6 +106,10 @@ public final class CrashLogger {
 
     public func logError(_ error: Error, context: String = "") {
         print("[CrashLogger] ERROR in \(context): \(error.localizedDescription)")
+    }
+
+    public func logError(_ message: String, context: String = "") {
+        logError(CrashLoggerMessageError(message: message), context: context)
     }
 
     public func logWarning(_ message: String, context: String = "") {
