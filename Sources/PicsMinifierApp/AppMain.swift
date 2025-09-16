@@ -44,9 +44,10 @@ struct PicsMinifierMainApp: App {
 		CrashLogger.shared.logInfo("App icons disabled to prevent crashes", context: "AppMain")
 
 		// Сбросим CSV-лог и начнём заново с новым форматом
-		let logURL = AppPaths.logCSVURL()
-		try? FileManager.default.removeItem(at: logURL)
-		_ = CSVLogger(logURL: logURL)
+                let logURL = AppPaths.logCSVURL()
+                if CSVLogger(logURL: logURL) == nil {
+                        CrashLogger.shared.logError("Failed to initialize CSV logger", context: "AppMain")
+                }
 		// Привяжем обновление прогресса
 		Task { @MainActor in
 			let dummyView = ContentView()

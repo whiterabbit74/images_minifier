@@ -20,46 +20,47 @@ final class ProcessingManager {
 			// Первичное окно
 			for _ in 0..<maxConcurrent {
 				guard let url = it.next() else { break }
-				group.addTask { [weak self] in
-					guard let self = self else { return }
+                                group.addTask { [weak self] in
+                                        guard let self = self, !self.isCancelled else { return }
 
-					// Check for cancellation before starting work
-					guard !Task.isCancelled else { return }
+                                        guard !Task.isCancelled else { return }
 
-					let result = self.compressFile(at: url, settings: settings)
+                                        let result = self.compressFile(at: url, settings: settings)
 
-					// Check for cancellation after potentially long operation
-					guard !Task.isCancelled else { return }
+                                        guard !self.isCancelled, !Task.isCancelled else { return }
 
-					self.logger?.append(result)
-					NotificationCenter.default.post(name: .processingResult, object: result)
+                                        self.logger?.append(result)
+                                        NotificationCenter.default.post(name: .processingResult, object: result)
 
-					if result.status == "ok" && result.originalSizeBytes > result.newSizeBytes {
-						DispatchQueue.main.async {
-							guard !Task.isCancelled else { return }
-							NSApp.dockTile.badgeLabel = "✓"
-							AppUIManager.shared.showDockBounce()
-						}
-					}
-				}
+                                        if self.shouldCelebrate(result: result) {
+                                                DispatchQueue.main.async {
+                                                        guard !self.isCancelled else { return }
+                                                        guard !Task.isCancelled else { return }
+                                                        NSApp.dockTile.badgeLabel = "✓"
+                                                        AppUIManager.shared.showDockBounce()
+                                                }
+                                        }
+                                }
 			}
 			// Подкладываем оставшиеся задачи, дожидаясь завершения по одной
 			while let url = it.next() {
 				if isCancelled { break }
 				_ = await group.next()
-				group.addTask { [weak self] in
-					guard let self = self else { return }
-					if Task.isCancelled { return }
-					let result = self.compressFile(at: url, settings: settings)
-					self.logger?.append(result)
-					NotificationCenter.default.post(name: .processingResult, object: result)
-					if result.status == "ok" && result.originalSizeBytes > result.newSizeBytes {
-						DispatchQueue.main.async {
-							NSApp.dockTile.badgeLabel = "✓"
-							AppUIManager.shared.showDockBounce()
-						}
-					}
-				}
+                                group.addTask { [weak self] in
+                                        guard let self = self, !self.isCancelled else { return }
+                                        if Task.isCancelled { return }
+                                        let result = self.compressFile(at: url, settings: settings)
+                                        guard !self.isCancelled, !Task.isCancelled else { return }
+                                        self.logger?.append(result)
+                                        NotificationCenter.default.post(name: .processingResult, object: result)
+                                        if self.shouldCelebrate(result: result) {
+                                                DispatchQueue.main.async {
+                                                        guard !self.isCancelled else { return }
+                                                        NSApp.dockTile.badgeLabel = "✓"
+                                                        AppUIManager.shared.showDockBounce()
+                                                }
+                                        }
+                                }
 			}
 			await group.waitForAll()
 		}
@@ -86,6 +87,14 @@ final class ProcessingManager {
         }
     }
 
+    private func shouldCelebrate(result: ProcessResult) -> Bool {
+        let normalizedStatus = result.status.lowercased()
+        let isSuccessful = normalizedStatus == "ok" || normalizedStatus == "success"
+        guard isSuccessful else { return false }
+
+        return result.originalSizeBytes > result.newSizeBytes
+    }
+
     // MARK: - Public Configuration
 
     func setUseModernCompressors(_ enabled: Bool) {
@@ -97,7 +106,9 @@ final class ProcessingManager {
     func getAvailableTools() -> [String: Bool] {
         let fm = FileManager.default
         return [
-            "MozJPEG": fm.isExecutableFile(atPath: "/opt/homebrew/bin/cjpeg") || fm.isExecutableFile(atPath: "/usr/local/bin/cjpeg"),
+            "MozJPEG": fm.isExecutableFile(atPath: "/opt/homebrew/bin/cjpeg") ||
+                fm.isExecutableFile(atPath: "/usr/local/bin/cjpeg") ||
+                fm.isExecutableFile(atPath: "/usr/local/opt/mozjpeg/bin/cjpeg"),
             "Oxipng": fm.isExecutableFile(atPath: "/opt/homebrew/bin/oxipng") || fm.isExecutableFile(atPath: "/usr/local/bin/oxipng"),
             "Gifsicle": fm.isExecutableFile(atPath: "/opt/homebrew/bin/gifsicle") || fm.isExecutableFile(atPath: "/usr/local/bin/gifsicle"),
             "AVIF": fm.isExecutableFile(atPath: "/opt/homebrew/bin/avifenc") || fm.isExecutableFile(atPath: "/usr/local/bin/avifenc")

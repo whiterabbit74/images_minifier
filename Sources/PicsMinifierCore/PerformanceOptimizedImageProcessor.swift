@@ -1,4 +1,6 @@
 import Foundation
+
+#if canImport(CoreGraphics) && canImport(ImageIO) && canImport(UniformTypeIdentifiers)
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
@@ -143,8 +145,9 @@ public final class PerformanceOptimizedImageProcessor {
         var results: [ProcessResult] = []
         let resultsQueue = DispatchQueue(label: "results", qos: .utility)
         let group = DispatchGroup()
+        var processedCount = 0
 
-        for (index, url) in urls.enumerated() {
+        for url in urls {
             group.enter()
 
             let outputURL = computeOptimizedOutputURL(for: url, mode: settings.saveMode)
@@ -155,8 +158,11 @@ public final class PerformanceOptimizedImageProcessor {
                 resultsQueue.async {
                     results.append(result)
 
+                    processedCount += 1
+                    let current = processedCount
+
                     DispatchQueue.main.async {
-                        progressHandler(index + 1, urls.count)
+                        progressHandler(current, urls.count)
                     }
 
                     group.leave()
@@ -327,7 +333,8 @@ public final class PerformanceOptimizedImageProcessor {
             to: outputURL,
             format: metadata.utType,
             settings: settings,
-            originalSize: metadata.fileSize
+            originalSize: metadata.fileSize,
+            sourceURL: sourceURL
         )
     }
 
@@ -356,13 +363,39 @@ public final class PerformanceOptimizedImageProcessor {
             to: outputURL,
             format: metadata.utType,
             settings: settings,
-            originalSize: metadata.fileSize
+            originalSize: metadata.fileSize,
+            sourceURL: sourceURL
         )
     }
 
     private func copyOptimized(sourceURL: URL, outputURL: URL, metadata: ImageMetadata) throws -> ProcessResult {
         // For small files, just do an optimized copy
-        try FileManager.default.copyItem(at: sourceURL, to: outputURL)
+        let fm = FileManager.default
+
+        if sourceURL.path == outputURL.path {
+            let tempName = SecurityUtils.createSecureTempFileName(extension: outputURL.pathExtension)
+            let tempURL = fm.temporaryDirectory.appendingPathComponent(tempName)
+
+            if fm.fileExists(atPath: tempURL.path) {
+                try fm.removeItem(at: tempURL)
+            }
+
+            try fm.copyItem(at: sourceURL, to: tempURL)
+
+            if fm.fileExists(atPath: outputURL.path) {
+                try fm.removeItem(at: outputURL)
+            }
+
+            try fm.moveItem(at: tempURL, to: outputURL)
+        } else {
+            try fm.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+            if fm.fileExists(atPath: outputURL.path) {
+                try fm.removeItem(at: outputURL)
+            }
+
+            try fm.copyItem(at: sourceURL, to: outputURL)
+        }
 
         return ProcessResult(
             sourceFormat: metadata.utType.preferredFilenameExtension ?? "unknown",
@@ -371,7 +404,7 @@ public final class PerformanceOptimizedImageProcessor {
             outputPath: outputURL.path,
             originalSizeBytes: metadata.fileSize,
             newSizeBytes: metadata.fileSize,
-            status: "ok",
+            status: "success",
             reason: "copied-small-file"
         )
     }
@@ -408,7 +441,8 @@ public final class PerformanceOptimizedImageProcessor {
         to outputURL: URL,
         format: UTType,
         settings: AppSettings,
-        originalSize: Int64
+        originalSize: Int64,
+        sourceURL: URL
     ) throws -> ProcessResult {
 
         // Create output directory
@@ -449,11 +483,11 @@ public final class PerformanceOptimizedImageProcessor {
         return ProcessResult(
             sourceFormat: format.preferredFilenameExtension ?? "unknown",
             targetFormat: format.preferredFilenameExtension ?? "unknown",
-            originalPath: outputURL.path, // Note: this should be source path in real implementation
+            originalPath: sourceURL.path,
             outputPath: outputURL.path,
             originalSizeBytes: originalSize,
             newSizeBytes: newSize,
-            status: "ok",
+            status: "success",
             reason: newSize < originalSize ? "compressed" : "no-gain"
         )
     }
@@ -485,7 +519,13 @@ public final class PerformanceOptimizedImageProcessor {
             let ext = inputURL.pathExtension
             let base = inputURL.deletingPathExtension().lastPathComponent
             let dir = inputURL.deletingLastPathComponent()
-            return dir.appendingPathComponent("\(base)_optimized").appendingPathExtension(ext)
+            let sanitizedBase = SecurityUtils.sanitizeFilename(base)
+            let sanitizedExt = SecurityUtils.sanitizeFilename(ext)
+            if sanitizedExt.isEmpty {
+                return dir.appendingPathComponent("\(sanitizedBase)_optimized")
+            } else {
+                return dir.appendingPathComponent("\(sanitizedBase)_optimized.\(sanitizedExt)")
+            }
 
         case .separateFolder:
             let dir = inputURL.deletingLastPathComponent()
@@ -497,6 +537,31 @@ public final class PerformanceOptimizedImageProcessor {
         }
     }
 }
+
+#else
+
+public final class PerformanceOptimizedImageProcessor {
+    public init() {}
+
+    public func processImage(at url: URL, outputURL: URL, settings: AppSettings, completion: @escaping (ProcessResult) -> Void) {
+        let originalSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value ?? 0
+        let format = url.pathExtension.lowercased()
+        let result = ProcessResult(sourceFormat: format, targetFormat: format, originalPath: url.path, outputPath: url.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "optimizer-unavailable")
+        completion(result)
+    }
+
+    public func processImages(urls: [URL], settings: AppSettings, progressHandler: @escaping (Int, Int) -> Void, completion: @escaping ([ProcessResult]) -> Void) {
+        progressHandler(0, urls.count)
+        let results = urls.map { url in
+            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value ?? 0
+            let format = url.pathExtension.lowercased()
+            return ProcessResult(sourceFormat: format, targetFormat: format, originalPath: url.path, outputPath: url.path, originalSizeBytes: size, newSizeBytes: size, status: "skipped", reason: "optimizer-unavailable")
+        }
+        completion(results)
+    }
+}
+
+#endif
 
 // MARK: - Processing Errors
 

@@ -1,4 +1,6 @@
 import Foundation
+
+#if canImport(os.log)
 import os.log
 
 /// Простая система логирования ошибок и крашей
@@ -84,6 +86,38 @@ public final class CrashLogger {
         try? header.write(to: logFileURL, atomically: true, encoding: .utf8)
     }
 }
+
+#else
+
+public final class CrashLogger {
+    public static let shared = CrashLogger()
+
+    private init() {}
+
+    public func logError(_ error: Error, context: String = "") {
+        print("[CrashLogger] ERROR in \(context): \(error.localizedDescription)")
+    }
+
+    public func logWarning(_ message: String, context: String = "") {
+        print("[CrashLogger] WARNING in \(context): \(message)")
+    }
+
+    public func logInfo(_ message: String, context: String = "") {
+        print("[CrashLogger] INFO in \(context): \(message)")
+    }
+
+    public func logCritical(_ message: String, context: String = "") {
+        print("[CrashLogger] CRITICAL in \(context): \(message)")
+    }
+
+    public func getLogFileURL() -> URL {
+        return FileManager.default.temporaryDirectory
+    }
+
+    public func clearLog() {}
+}
+
+#endif
 
 private extension DateFormatter {
     static let logFormatter: DateFormatter = {

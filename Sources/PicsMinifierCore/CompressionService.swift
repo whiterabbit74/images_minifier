@@ -1,4 +1,6 @@
 import Foundation
+
+#if canImport(ImageIO) && canImport(UniformTypeIdentifiers) && canImport(CoreGraphics)
 import ImageIO
 import UniformTypeIdentifiers
 import CoreGraphics
@@ -110,12 +112,20 @@ public final class CompressionService {
 		}
 
 		// Обновим агрегаты при успехе уменьшения
-		let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
-		if saved > 0 && result.status == "ok" {
-			StatsStore.shared.addSavedBytes(saved)
-		}
-		return result
-	}
+                let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
+                if isSuccessful(result) {
+                        StatsStore.shared.addProcessed(count: 1)
+                        if saved > 0 {
+                                StatsStore.shared.addSavedBytes(saved)
+                        }
+                }
+                return result
+        }
+
+        private func isSuccessful(_ result: ProcessResult) -> Bool {
+                let status = result.status.lowercased()
+                return status == "ok" || status == "success"
+        }
 
 	private func qualityFor(_ preset: CompressionPreset) -> Double {
 		switch preset {
@@ -153,11 +163,21 @@ public final class CompressionService {
 		} else {
 			image = baseImage
 		}
-		let parentDir = outputURL.deletingLastPathComponent()
-		try? fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
-		guard let dest = CGImageDestinationCreateWithURL(outputURL as CFURL, destUTType, 1, nil) else {
-			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-dest-create-failed")
-		}
+                let overwritingSource = inputURL.path == outputURL.path
+                let destinationURL: URL
+                if overwritingSource {
+                        let tempExtension = outputURL.pathExtension.isEmpty ? sourceFormat : outputURL.pathExtension
+                        let tempName = SecurityUtils.createSecureTempFileName(extension: tempExtension)
+                        destinationURL = fm.temporaryDirectory.appendingPathComponent(tempName)
+                } else {
+                        destinationURL = outputURL
+                }
+
+                let parentDir = destinationURL.deletingLastPathComponent()
+                try? fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
+                guard let dest = CGImageDestinationCreateWithURL(destinationURL as CFURL, destUTType, 1, nil) else {
+                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-dest-create-failed")
+                }
 		var props: [CFString: Any] = [:]
 		if let q = quality { props[kCGImageDestinationLossyCompressionQuality] = q }
 		if tiffLZW {
@@ -188,14 +208,35 @@ public final class CompressionService {
 			props[kCGImagePropertyColorModel] = kCGImagePropertyColorModelRGB
 			props[kCGImagePropertyProfileName] = "sRGB IEC61966-2.1"
 		}
-		CGImageDestinationAddImage(dest, image, props as CFDictionary)
-		guard CGImageDestinationFinalize(dest) else {
-			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-finalize-failed")
-		}
-		let newSize = (try? fm.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
-		let saved = max(0, originalSize - newSize)
-		return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: outputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "ok", reason: saved > 0 ? nil : "no-gain")
-	}
+                CGImageDestinationAddImage(dest, image, props as CFDictionary)
+                guard CGImageDestinationFinalize(dest) else {
+                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "cgimage-finalize-failed")
+                }
+                let newSize = (try? fm.attributesOfItem(atPath: destinationURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+
+                if newSize >= originalSize {
+                        if destinationURL != inputURL {
+                                try? fm.removeItem(at: destinationURL)
+                        }
+                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "no-gain")
+                }
+
+                if overwritingSource {
+                        do {
+                                if fm.fileExists(atPath: inputURL.path) {
+                                        try fm.removeItem(at: inputURL)
+                                }
+                                try fm.moveItem(at: destinationURL, to: inputURL)
+                        } catch {
+                                try? fm.removeItem(at: destinationURL)
+                                return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "error", reason: "move-failed")
+                        }
+                }
+
+                let finalOutputURL = overwritingSource ? inputURL : destinationURL
+                let saved = originalSize - newSize
+                return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: finalOutputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "success", reason: saved > 0 ? "imageio-compression" : "no-gain")
+        }
 
 	private func reencodeWebPWithEmbedded(inputURL: URL, outputURL: URL, preset: CompressionPreset, convertToSRGB: Bool, maxDimension: Int?) -> ProcessResult {
 		let fm = FileManager.default
@@ -238,15 +279,45 @@ public final class CompressionService {
 		guard let webpData = encoder.encodeRGBA(rgbaData, width: dstW, height: dstH, quality: q) else {
 			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "embedded-webp-encode-failed")
 		}
-		try? fm.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-		do {
-			try webpData.write(to: outputURL, options: [.atomic])
-		} catch {
-			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "write-failed")
-		}
-		let newSize = (try? fm.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
-		return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: outputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "ok", reason: newSize < originalSize ? nil : "no-gain")
-	}
+                let overwritingSource = inputURL.path == outputURL.path
+                let destinationURL: URL
+                if overwritingSource {
+                        let tempName = SecurityUtils.createSecureTempFileName(extension: outputURL.pathExtension.isEmpty ? sourceFormat : outputURL.pathExtension)
+                        destinationURL = fm.temporaryDirectory.appendingPathComponent(tempName)
+                } else {
+                        destinationURL = outputURL
+                }
+
+                try? fm.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                do {
+                        try webpData.write(to: destinationURL, options: [.atomic])
+                } catch {
+                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "write-failed")
+                }
+                let newSize = (try? fm.attributesOfItem(atPath: destinationURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+
+                if newSize >= originalSize {
+                        if destinationURL != inputURL {
+                                try? fm.removeItem(at: destinationURL)
+                        }
+                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "no-gain")
+                }
+
+                if overwritingSource {
+                        do {
+                                if fm.fileExists(atPath: inputURL.path) {
+                                        try fm.removeItem(at: inputURL)
+                                }
+                                try fm.moveItem(at: destinationURL, to: inputURL)
+                        } catch {
+                                try? fm.removeItem(at: destinationURL)
+                                return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "error", reason: "move-failed")
+                        }
+                }
+
+                let finalOutputURL = overwritingSource ? inputURL : destinationURL
+                return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: finalOutputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "success", reason: "webp-compression")
+        }
 
 	private func webPQuality(for preset: CompressionPreset) -> Int {
 		switch preset {
@@ -268,13 +339,16 @@ public final class CompressionService {
 		return (max(newW, 1), max(newH, 1))
 	}
 
-	private static func computeOutputURL(for inputURL: URL, mode: SaveMode) -> URL {
-		switch mode {
-		case .suffix:
-			let ext = inputURL.pathExtension
-			let base = inputURL.deletingPathExtension().lastPathComponent
-			let dir = inputURL.deletingLastPathComponent()
-			return dir.appendingPathComponent("\(base)_compressed").appendingPathExtension(ext)
+        private static func computeOutputURL(for inputURL: URL, mode: SaveMode) -> URL {
+                switch mode {
+                case .suffix:
+                        let ext = inputURL.pathExtension
+                        let base = inputURL.deletingPathExtension().lastPathComponent
+                        let dir = inputURL.deletingLastPathComponent()
+                        let sanitizedBase = SecurityUtils.sanitizeFilename(base)
+                        let sanitizedExt = SecurityUtils.sanitizeFilename(ext)
+                        let filename = sanitizedExt.isEmpty ? "\(sanitizedBase)_compressed" : "\(sanitizedBase)_compressed.\(sanitizedExt)"
+                        return dir.appendingPathComponent(filename)
 		case .separateFolder:
 			let dir = inputURL.deletingLastPathComponent()
 			let outDir = dir.appendingPathComponent("Compressor")
@@ -282,9 +356,30 @@ public final class CompressionService {
 			let base = inputURL.deletingPathExtension().lastPathComponent
 			return outDir.appendingPathComponent("\(base)").appendingPathExtension(ext)
 		case .overwrite:
-			return inputURL
-		}
-	}
+                        return inputURL
+                }
+        }
 }
+#else
+
+public final class CompressionService {
+        public init() {}
+
+        public func compressFile(at inputURL: URL, settings: AppSettings) -> ProcessResult {
+                let format = inputURL.pathExtension.lowercased()
+                let originalSize = (try? FileManager.default.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
+                return ProcessResult(
+                        sourceFormat: format,
+                        targetFormat: format,
+                        originalPath: inputURL.path,
+                        outputPath: inputURL.path,
+                        originalSizeBytes: originalSize,
+                        newSizeBytes: originalSize,
+                        status: "skipped",
+                        reason: "compression-unavailable"
+                )
+        }
+}
+#endif
 
 

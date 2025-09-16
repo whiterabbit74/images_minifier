@@ -16,11 +16,16 @@ extension ContentView {
 
 	@MainActor
 	func consume(url: URL) async {
-		let walker = FileWalker()
-		let files = walker.enumerateSupportedFiles(at: url)
-		self.sessionStats.totalInBatch = files.count
+                let walker = FileWalker()
+                let files = walker.enumerateSupportedFiles(at: url)
+                self.sessionStats.totalInBatch = files.count
+                self.sessionStats.totalFiles = files.count
+                self.sessionStats.processedFiles = 0
+                self.sessionStats.totalOriginalSize = 0
+                self.sessionStats.totalCompressedSize = 0
+                self.sessionStats.errorCount = 0
 
-		var settings = AppSettings()
+                var settings = AppSettings()
 		settings.preset = preset
 		settings.saveMode = saveMode
 		settings.preserveMetadata = preserveMetadata
@@ -55,14 +60,17 @@ extension ContentView {
 		)
 	}
 
-	@MainActor
-	func bindProgressUpdates() {
+        @MainActor
+        func bindProgressUpdates() {
+                guard progressObserverTokens.isEmpty else { return }
 
-		NotificationCenter.default.addObserver(forName: .settingsChanged, object: nil, queue: .main) { _ in
-			// Перечитываем настройки из UserDefaults
-			if let raw = UserDefaults.standard.string(forKey: "settings.saveMode"), let mode = SaveMode(rawValue: raw) {
-				self.saveMode = mode; self.previousSaveMode = mode
-			}
+                let center = NotificationCenter.default
+
+                let settingsToken = center.addObserver(forName: .settingsChanged, object: nil, queue: .main) { _ in
+                        // Перечитываем настройки из UserDefaults
+                        if let raw = UserDefaults.standard.string(forKey: "settings.saveMode"), let mode = SaveMode(rawValue: raw) {
+                                self.saveMode = mode; self.previousSaveMode = mode
+                        }
 			if let rawPreset = UserDefaults.standard.string(forKey: "settings.preset"), let pr = CompressionPreset(rawValue: rawPreset) {
 				self.preset = pr
 			}
@@ -73,28 +81,42 @@ extension ContentView {
 			   let mode = AppearanceMode(rawValue: rawAppearance) {
 				self.appearanceMode = mode
 			}
-			self.showDockIcon = UserDefaults.standard.object(forKey: "ui.showDockIcon") as? Bool ?? self.showDockIcon
-			self.showMenuBarIcon = UserDefaults.standard.object(forKey: "ui.showMenuBarIcon") as? Bool ?? self.showMenuBarIcon
-		}
+                        self.showDockIcon = UserDefaults.standard.object(forKey: "ui.showDockIcon") as? Bool ?? self.showDockIcon
+                        self.showMenuBarIcon = UserDefaults.standard.object(forKey: "ui.showMenuBarIcon") as? Bool ?? self.showMenuBarIcon
+                }
+                progressObserverTokens.append(settingsToken)
 
-		NotificationCenter.default.addObserver(forName: .openSettings, object: nil, queue: .main) { _ in
-			self.showingSettings = true
-		}
+                let openSettingsToken = center.addObserver(forName: .openSettings, object: nil, queue: .main) { _ in
+                        self.showingSettings = true
+                }
+                progressObserverTokens.append(openSettingsToken)
 
-		NotificationCenter.default.addObserver(forName: .openFiles, object: nil, queue: .main) { _ in
-			guard !self.isProcessing else { return }
-			self.pickFiles()
-		}
+                let openFilesToken = center.addObserver(forName: .openFiles, object: nil, queue: .main) { _ in
+                        guard !self.isProcessing else { return }
+                        self.pickFiles()
+                }
+                progressObserverTokens.append(openFilesToken)
 
-		NotificationCenter.default.addObserver(forName: .openFolder, object: nil, queue: .main) { _ in
-			guard !self.isProcessing else { return }
-			self.pickFolder()
-		}
+                let openFolderToken = center.addObserver(forName: .openFolder, object: nil, queue: .main) { _ in
+                        guard !self.isProcessing else { return }
+                        self.pickFolder()
+                }
+                progressObserverTokens.append(openFolderToken)
 
-		NotificationCenter.default.addObserver(forName: .cancelProcessing, object: nil, queue: .main) { _ in
-			ProcessingManager.shared.cancel()
-		}
-	}
+                let cancelToken = center.addObserver(forName: .cancelProcessing, object: nil, queue: .main) { _ in
+                        ProcessingManager.shared.cancel()
+                        SecureIntegrationLayer.shared.cancelCompression()
+                }
+                progressObserverTokens.append(cancelToken)
+        }
+
+        @MainActor
+        func teardownProgressUpdates() {
+                for token in progressObserverTokens {
+                        NotificationCenter.default.removeObserver(token)
+                }
+                progressObserverTokens.removeAll()
+        }
 
 	func pickFiles() {
 		let panel = NSOpenPanel()
@@ -104,11 +126,16 @@ extension ContentView {
 		panel.begin { resp in
 			if resp == .OK {
 				Task { @MainActor in
-					let walker = FileWalker()
-					let files = panel.urls.flatMap { walker.enumerateSupportedFiles(at: $0) }
-					self.sessionStats.totalInBatch = files.count
+                                        let walker = FileWalker()
+                                        let files = panel.urls.flatMap { walker.enumerateSupportedFiles(at: $0) }
+                                        self.sessionStats.totalInBatch = files.count
+                                        self.sessionStats.totalFiles = files.count
+                                        self.sessionStats.processedFiles = 0
+                                        self.sessionStats.totalOriginalSize = 0
+                                        self.sessionStats.totalCompressedSize = 0
+                                        self.sessionStats.errorCount = 0
 
-					var settings = AppSettings()
+                                        var settings = AppSettings()
 					settings.preset = preset
 					settings.saveMode = saveMode
 					settings.preserveMetadata = preserveMetadata

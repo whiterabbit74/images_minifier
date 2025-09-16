@@ -7,8 +7,14 @@ final class SecurityFixesTests: XCTestCase {
 
     func testPathValidation() throws {
         // Valid paths should pass
-        XCTAssertNoThrow(try SecurityUtils.validateFilePath("/Users/test/image.jpg"))
-        XCTAssertNoThrow(try SecurityUtils.validateFilePath("/tmp/temp.png"))
+        let homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path
+        let homeImage = URL(fileURLWithPath: homeDirectory).appendingPathComponent("Pictures/test.jpg").path
+        XCTAssertNoThrow(try SecurityUtils.validateFilePath(homeImage))
+
+        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("temp.png").path
+        XCTAssertNoThrow(try SecurityUtils.validateFilePath(tempFile))
+
+        XCTAssertNoThrow(try SecurityUtils.validateFilePath("/Volumes/Drive/image.png"))
 
         // Directory traversal should fail
         XCTAssertThrowsError(try SecurityUtils.validateFilePath("/Users/test/../../../etc/passwd"))
@@ -17,6 +23,9 @@ final class SecurityFixesTests: XCTestCase {
         // Invalid paths should fail
         XCTAssertThrowsError(try SecurityUtils.validateFilePath("/root/secret"))
         XCTAssertThrowsError(try SecurityUtils.validateFilePath("/System/important"))
+
+        let siblingHome = URL(fileURLWithPath: homeDirectory).deletingLastPathComponent().appendingPathComponent("otheruser/file.jpg").path
+        XCTAssertThrowsError(try SecurityUtils.validateFilePath(siblingHome))
     }
 
     func testArgumentSanitization() throws {

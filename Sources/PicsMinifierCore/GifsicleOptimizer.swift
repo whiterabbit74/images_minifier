@@ -1,4 +1,6 @@
 import Foundation
+
+#if canImport(Darwin)
 import Darwin
 
 public final class GifsicleOptimizer {
@@ -93,5 +95,19 @@ public final class GifsicleOptimizer {
 		return nil
 	}
 }
+
+#else
+
+public final class GifsicleOptimizer {
+        public init() {}
+
+        public func optimize(inputURL: URL, outputURL: URL) -> ProcessResult {
+                let originalSize = (try? FileManager.default.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
+                let format = inputURL.pathExtension.lowercased()
+                return ProcessResult(sourceFormat: format, targetFormat: format, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "gifsicle-unavailable")
+        }
+}
+
+#endif
 
 

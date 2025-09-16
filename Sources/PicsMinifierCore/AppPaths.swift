@@ -1,25 +1,23 @@
 import Foundation
 
 public enum AppPaths {
-	public static func logsDirectory() -> URL {
-		let fm = FileManager.default
+        public static func logsDirectory() -> URL {
+                let fm = FileManager.default
 
-		// Safe access to application support directory with fallback
-		guard let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-			// Fallback to temporary directory if application support is unavailable
-			let tempDir = fm.temporaryDirectory.appendingPathComponent("PicsMinifier", isDirectory: true)
-			try? fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
-			return tempDir
-		}
+                let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                        ?? fm.temporaryDirectory
 
-		let dir = base.appendingPathComponent("PicsMinifier", isDirectory: true)
-		try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-		return dir
-	}
+                let appSupport = base.appendingPathComponent("PicsMinifier", isDirectory: true)
+                let logsDir = appSupport.appendingPathComponent("Logs", isDirectory: true)
 
-	public static func logCSVURL() -> URL {
-		logsDirectory().appendingPathComponent("history.csv")
-	}
+                try? fm.createDirectory(at: logsDir, withIntermediateDirectories: true)
+
+                return logsDir
+        }
+
+        public static func logCSVURL() -> URL {
+                logsDirectory().appendingPathComponent("compression_log.csv")
+        }
 }
 
 
