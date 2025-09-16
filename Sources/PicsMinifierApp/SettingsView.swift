@@ -291,6 +291,119 @@ struct SettingsView: View {
                     .padding(12)
                 }
 
+                // 📁 ПОДДЕРЖИВАЕМЫЕ ФОРМАТЫ
+                GroupBox(label: Label("Поддерживаемые форматы", systemImage: "doc.badge.gearshape.fill")
+                    .foregroundColor(.blue)) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Какие библиотеки используются для обработки файлов")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            FormatProcessorRow(
+                                extensions: ["jpg", "jpeg"],
+                                icon: "photo.fill",
+                                color: .orange,
+                                processor: jpegProcessorName(),
+                                description: jpegProcessorDescription(),
+                                hasOptions: jpegHasOptions()
+                            )
+
+                            FormatProcessorRow(
+                                extensions: ["png"],
+                                icon: "photo.on.rectangle.fill",
+                                color: .blue,
+                                processor: pngProcessorName(),
+                                description: pngProcessorDescription(),
+                                hasOptions: pngHasOptions()
+                            )
+
+                            FormatProcessorRow(
+                                extensions: ["heic", "heif"],
+                                icon: "camera.fill",
+                                color: .purple,
+                                processor: "ImageIO (macOS)",
+                                description: "Системный HEIF кодек",
+                                hasOptions: false
+                            )
+
+                            FormatProcessorRow(
+                                extensions: ["webp"],
+                                icon: "globe.central.south.asia.fill",
+                                color: .green,
+                                processor: webpProcessorName(),
+                                description: webpProcessorDescription(),
+                                hasOptions: webpHasOptions()
+                            )
+
+                            FormatProcessorRow(
+                                extensions: ["gif"],
+                                icon: "film.fill",
+                                color: .red,
+                                processor: gifProcessorName(),
+                                description: gifProcessorDescription(),
+                                hasOptions: gifHasOptions()
+                            )
+
+                            FormatProcessorRow(
+                                extensions: ["tiff"],
+                                icon: "doc.richtext.fill",
+                                color: .brown,
+                                processor: "ImageIO (macOS)",
+                                description: "Системный TIFF кодек с LZW",
+                                hasOptions: false
+                            )
+                        }
+
+                        // Информация об улучшениях
+                        if needsModernTools() {
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "arrow.up.circle.fill")
+                                        .foregroundColor(.green)
+                                    Text("Улучшите сжатие!")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if !jpegHasOptions() {
+                                        Text("• JPEG: установите MozJPEG для +35% лучшего сжатия")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    if !pngHasOptions() {
+                                        Text("• PNG: установите Oxipng для +20% лучшего сжатия")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    if !gifHasOptions() {
+                                        Text("• GIF: установите Giflossy для +30% лучшего сжатия")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+
+                                HStack {
+                                    Text("Команда: brew install mozjpeg oxipng giflossy")
+                                        .font(.caption2)
+                                        .fontFamily(.monospaced)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(4)
+                                    Spacer()
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                    .padding(12)
+                }
+
                 // 🔍 ДИАГНОСТИКА И ИНСТРУМЕНТЫ
                 GroupBox(label: Label("Инструменты", systemImage: "wrench.and.screwdriver.fill")
                     .foregroundColor(.gray)) {
@@ -431,12 +544,163 @@ struct SettingsView: View {
         }
     }
 
+    private func webpProcessorName() -> String {
+        let encoder = WebPEncoder()
+        switch encoder.availability() {
+        case .systemCodec: return "ImageIO (macOS)"
+        case .embedded: return "libwebp (встроенная)"
+        case .unavailable: return "Недоступно"
+        }
+    }
+
+    private func webpProcessorDescription() -> String {
+        let encoder = WebPEncoder()
+        switch encoder.availability() {
+        case .systemCodec: return "Системный WebP кодек"
+        case .embedded: return "Встроенная библиотека libwebp"
+        case .unavailable: return "WebP кодек не найден"
+        }
+    }
+
+    private func webpHasOptions() -> Bool {
+        let encoder = WebPEncoder()
+        return encoder.availability() != .unavailable
+    }
+
+    private func gifsicleStatus() -> String {
+        let modernGif = ModernGifOptimizer()
+        let tools = modernGif.getAvailableTools()
+        return tools.isEmpty ? "Не найден" : tools.first ?? "Не найден"
+    }
+
+    // Новые методы для современных компрессоров
+    private func jpegProcessorName() -> String {
+        let mozjpeg = MozJPEGCompressor()
+        return mozjpeg.isAvailable() ? "MozJPEG" : "ImageIO (macOS)"
+    }
+
+    private func jpegProcessorDescription() -> String {
+        let mozjpeg = MozJPEGCompressor()
+        return mozjpeg.isAvailable() ? "Современный JPEG оптимизатор (+35% сжатие)" : "Системный JPEG кодек"
+    }
+
+    private func pngProcessorName() -> String {
+        let oxipng = OxipngCompressor()
+        return oxipng.isAvailable() ? "Oxipng" : "ImageIO (macOS)"
+    }
+
+    private func pngProcessorDescription() -> String {
+        let oxipng = OxipngCompressor()
+        return oxipng.isAvailable() ? "Быстрый PNG оптимизатор (+20% сжатие)" : "Системный PNG кодек"
+    }
+
+    private func jpegHasOptions() -> Bool {
+        let mozjpeg = MozJPEGCompressor()
+        return mozjpeg.isAvailable()
+    }
+
+    private func pngHasOptions() -> Bool {
+        let oxipng = OxipngCompressor()
+        return oxipng.isAvailable()
+    }
+
+    private func gifProcessorName() -> String {
+        let modernGif = ModernGifOptimizer()
+        let tools = modernGif.getAvailableTools()
+        if tools.contains(where: { $0.contains("Giflossy") }) {
+            return "Giflossy + Gifsicle"
+        } else if tools.contains(where: { $0.contains("Gifsicle") }) {
+            return "Gifsicle"
+        } else {
+            return "Не найден"
+        }
+    }
+
+    private func gifProcessorDescription() -> String {
+        let modernGif = ModernGifOptimizer()
+        let tools = modernGif.getAvailableTools()
+        if tools.contains(where: { $0.contains("Giflossy") }) {
+            return "Продвинутый GIF оптимизатор (+30% сжатие)"
+        } else if tools.contains(where: { $0.contains("Gifsicle") }) {
+            return "Базовый GIF оптимизатор"
+        } else {
+            return "Оптимизатор не найден"
+        }
+    }
+
+    private func gifHasOptions() -> Bool {
+        let modernGif = ModernGifOptimizer()
+        return modernGif.isAvailable()
+    }
+
+    private func needsModernTools() -> Bool {
+        return !jpegHasOptions() || !pngHasOptions() || !gifHasOptions()
+    }
+
     private func showInfoAlert(title: String, message: String) {
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = title
         alert.informativeText = message
         alert.runModal()
+    }
+}
+
+struct FormatProcessorRow: View {
+    let extensions: [String]
+    let icon: String
+    let color: Color
+    let processor: String
+    let description: String
+    let hasOptions: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Иконка формата
+            Image(systemName: icon)
+                .foregroundColor(color)
+                .frame(width: 20)
+
+            // Расширения
+            HStack(spacing: 4) {
+                ForEach(extensions, id: \.self) { ext in
+                    Text(".\(ext.uppercased())")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(4)
+                }
+            }
+            .frame(width: 120, alignment: .leading)
+
+            // Разделитель
+            Text("→")
+                .foregroundColor(.secondary)
+
+            // Информация о процессоре
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(processor)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    if hasOptions {
+                        Image(systemName: "chevron.right.circle.fill")
+                            .foregroundColor(.blue)
+                            .font(.caption2)
+                    }
+                }
+
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 4)
     }
 }
 

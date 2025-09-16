@@ -94,7 +94,7 @@ public final class SecurityUtils {
         arguments: [String],
         timeout: TimeInterval = 30.0,
         maxOutputSize: Int = 1024 * 1024 // 1MB
-    ) async throws -> SecurityUtils.ProcessResult {
+    ) async throws -> SecurityUtils.SecureProcessResult {
 
         // Validate executable path
         let executablePath = try validateFilePath(executable.path)
@@ -132,29 +132,25 @@ public final class SecurityUtils {
             return process.terminationStatus
         }
 
-        let timeoutTask = Task {
-            if #available(macOS 13.0, *) {
-                try await Task.sleep(for: .seconds(timeout))
-            } else {
-                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-            }
-            throw SecurityError.processTimeout
-        }
-
         let terminationStatus: Int32
         do {
-            terminationStatus = await processTask.value
-            timeoutTask.cancel()
+            terminationStatus = try await withThrowingTaskGroup(of: Int32.self) { group in
+                group.addTask { await processTask.value }
+                group.addTask {
+                    if #available(macOS 13.0, *) {
+                        try await Task.sleep(for: .seconds(timeout))
+                    } else {
+                        try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    }
+                    throw SecurityError.processTimeout
+                }
+
+                let result = try await group.next()!
+                group.cancelAll()
+                return result
+            }
         } catch {
             process.terminate()
-            if #available(macOS 13.0, *) {
-                try await Task.sleep(for: .milliseconds(100))
-            } else {
-                try await Task.sleep(nanoseconds: 100_000_000)
-            }
-            if process.isRunning {
-                process.terminate()
-            }
             throw error
         }
 
@@ -162,7 +158,7 @@ public final class SecurityUtils {
         let stdoutData = stdoutPipe.fileHandleForReading.readData(ofLength: maxOutputSize)
         let stderrData = stderrPipe.fileHandleForReading.readData(ofLength: maxOutputSize)
 
-        return SecurityUtils.ProcessResult(
+        return SecurityUtils.SecureProcessResult(
             terminationStatus: terminationStatus,
             stdout: String(data: stdoutData, encoding: .utf8) ?? "",
             stderr: String(data: stderrData, encoding: .utf8) ?? ""
@@ -205,7 +201,7 @@ public final class SecurityUtils {
 
     // MARK: - Process Result
 
-    public struct ProcessResult {
+    public struct SecureProcessResult {
         public let terminationStatus: Int32
         public let stdout: String
         public let stderr: String

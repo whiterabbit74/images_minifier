@@ -124,9 +124,9 @@ struct ContentView: View {
 					}
 					.controlSize(.large)
 					HStack {
-						Text(String(format: NSLocalizedString("За всё время: файлов — %lld", comment: ""), StatsStore.shared.allTimeProcessedCount))
+						Text(String(format: NSLocalizedString("За всё время: файлов — %lld", comment: ""), SafeStatsStore.shared.processedCount()))
 						Spacer()
-						Text(String(format: NSLocalizedString("Экономия: %@", comment: ""), ByteCountFormatter.string(fromByteCount: StatsStore.shared.allTimeSavedBytes, countStyle: .file)))
+						Text(String(format: NSLocalizedString("Экономия: %@", comment: ""), ByteCountFormatter.string(fromByteCount: SafeStatsStore.shared.totalSavedBytes(), countStyle: .file)))
 					}
 				}
 			}
@@ -134,7 +134,7 @@ struct ContentView: View {
 		.padding(16)
 		.frame(width: 600, height: 600)
 		.fixedSize()
-		.preferredColorScheme(resolvedColorScheme())
+		.modifier(AppearanceModifier(mode: appearanceMode))
 		.onAppear {
 			AppUIManager.shared.lockMainWindowSize(width: 600, height: 600)
 			AppUIManager.shared.setupWindowPositionAutosave()
@@ -174,11 +174,41 @@ struct ContentView: View {
 				updateSystemTheme()
 			}
 		}
-		.onChange(of: appearanceMode) { UserDefaults.standard.set($0.rawValue, forKey: "ui.appearanceMode") }
-		.onChange(of: showDockIcon) { UserDefaults.standard.set($0, forKey: "ui.showDockIcon") }
-		.onChange(of: showMenuBarIcon) { UserDefaults.standard.set($0, forKey: "ui.showMenuBarIcon") }
+		.onChange(of: appearanceMode) { newMode in
+			print("🎨 onChange appearanceMode: \(newMode)")
+			UserDefaults.standard.set(newMode.rawValue, forKey: "ui.appearanceMode")
+			// Синхронизируем с NSApp.appearance
+			switch newMode {
+			case .light:
+				print("🎨 Setting light theme")
+				NSApp.appearance = NSAppearance(named: .aqua)
+			case .dark:
+				print("🎨 Setting dark theme")
+				NSApp.appearance = NSAppearance(named: .darkAqua)
+			case .auto:
+				print("🎨 Setting auto theme - clearing NSApp.appearance")
+				// Для автоматического режима полностью сбрасываем и обновляем
+				NSApp.appearance = nil
+				DispatchQueue.main.async {
+					print("🎨 Updating all windows for auto theme")
+					for window in NSApp.windows {
+						window.appearance = nil
+						window.invalidateShadow()
+						window.contentView?.needsDisplay = true
+					}
+				}
+			}
+		}
+		.onChange(of: showDockIcon) { newValue in
+			UserDefaults.standard.set(newValue, forKey: "ui.showDockIcon")
+			AppUIManager.shared.setDockIconVisible(newValue)
+		}
+		.onChange(of: showMenuBarIcon) { newValue in
+			UserDefaults.standard.set(newValue, forKey: "ui.showMenuBarIcon")
+			AppUIManager.shared.setMenuBarIconVisible(newValue)
+		}
 		.onExitCommand { withAnimation { showingSettings = false } }
-		.toolbar {
+		.toolbar(content: {
 			ToolbarItem(placement: .primaryAction) {
 				HStack(spacing: 8) {
 					Button(action: {
@@ -196,7 +226,7 @@ struct ContentView: View {
 					.help(NSLocalizedString("Открыть настройки (⌘,)", comment: ""))
 				}
 			}
-		}
+		})
 	}
 
 	private func resolvedColorScheme() -> ColorScheme? {
@@ -206,8 +236,7 @@ struct ContentView: View {
 		case .dark:
 			return .dark
 		case .auto:
-			// Для автоматического режима используем отслеживаемое системное значение
-			return systemIsDark ? .dark : .light
+			return nil // SwiftUI будет использовать системную тему
 		}
 	}
 
@@ -220,6 +249,7 @@ struct ContentView: View {
 		case .light:
 			appearanceMode = .auto
 		}
+		// НЕ устанавливаем NSApp.appearance здесь - это делает onChange
 	}
 
 	private func appearanceModeIcon() -> String {
@@ -246,16 +276,44 @@ struct ContentView: View {
 
 	private func updateSystemTheme() {
 		let appearance = NSApp.effectiveAppearance
-		systemIsDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+		let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+
+		if systemIsDark != isDark {
+			systemIsDark = isDark
+
+			// Для автоматического режима принудительно обновляем внешний вид приложения
+			if appearanceMode == .auto {
+				DispatchQueue.main.async {
+					NSApp.appearance = nil // Сбрасываем до системного
+				}
+			}
+		}
 	}
 }
 
-struct SessionStats {
-	var processedCount: Int = 0
-	var savedBytes: Int64 = 0
-	var totalInBatch: Int = 0
-}
 
 import UniformTypeIdentifiers
+
+struct AppearanceModifier: ViewModifier {
+    let mode: AppearanceMode
+
+    func body(content: Content) -> some View {
+        switch mode {
+        case .light:
+            content
+                .preferredColorScheme(.light)
+                .onAppear { print("🎨 AppearanceModifier: Applied light preferredColorScheme") }
+        case .dark:
+            content
+                .preferredColorScheme(.dark)
+                .onAppear { print("🎨 AppearanceModifier: Applied dark preferredColorScheme") }
+        case .auto:
+            // Для автоматического режима НЕ применяем preferredColorScheme
+            // SwiftUI будет следовать системной теме
+            content
+                .onAppear { print("🎨 AppearanceModifier: Auto mode - no preferredColorScheme") }
+        }
+    }
+}
 
 

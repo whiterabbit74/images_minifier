@@ -18,8 +18,8 @@ extension ContentView {
 	func consume(url: URL) async {
 		let walker = FileWalker()
 		let files = walker.enumerateSupportedFiles(at: url)
-		self.sessionStats = .init(totalInBatch: files.count)
-		StatsStore.shared.addProcessed(count: files.count)
+		self.sessionStats.totalInBatch = files.count
+
 		var settings = AppSettings()
 		settings.preset = preset
 		settings.saveMode = saveMode
@@ -28,23 +28,35 @@ extension ContentView {
 		settings.enableGifsicle = enableGifsicle
 		let md = UserDefaults.standard.object(forKey: "settings.maxDimension") as? Double ?? 0
 		settings.maxDimension = md > 0 ? Int(md) : nil
+
 		self.isProcessing = true
-		await ProcessingManager.shared.process(urls: files, settings: settings)
+
+		// Use SecureIntegrationLayer for processing
+		SecureIntegrationLayer.shared.compressFiles(
+			urls: files,
+			settings: settings,
+			progressCallback: { processed, total in
+				Task { @MainActor in
+					self.sessionStats.processedCount = processed
+					self.sessionStats.totalInBatch = total
+				}
+			},
+			completion: { results in
+				Task { @MainActor in
+					// Update session stats with results
+					for result in results where result.status == "success" {
+						let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
+						self.sessionStats.savedBytes += saved
+					}
+					self.isProcessing = false
+					AppUIManager.shared.showDockBounce()
+				}
+			}
+		)
 	}
 
 	@MainActor
 	func bindProgressUpdates() {
-		NotificationCenter.default.addObserver(forName: .processingResult, object: nil, queue: .main) { note in
-			guard let res = note.object as? ProcessResult else { return }
-			let saved = max(0, res.originalSizeBytes - res.newSizeBytes)
-			self.sessionStats.savedBytes += Int64(saved)
-			self.sessionStats.processedCount += 1
-		}
-
-		NotificationCenter.default.addObserver(forName: .processingFinished, object: nil, queue: .main) { _ in
-			AppUIManager.shared.showDockBounce()
-			self.isProcessing = false
-		}
 
 		NotificationCenter.default.addObserver(forName: .settingsChanged, object: nil, queue: .main) { _ in
 			// Перечитываем настройки из UserDefaults
@@ -94,15 +106,39 @@ extension ContentView {
 				Task { @MainActor in
 					let walker = FileWalker()
 					let files = panel.urls.flatMap { walker.enumerateSupportedFiles(at: $0) }
-					self.sessionStats = .init(totalInBatch: files.count)
-					StatsStore.shared.addProcessed(count: files.count)
+					self.sessionStats.totalInBatch = files.count
+
 					var settings = AppSettings()
 					settings.preset = preset
 					settings.saveMode = saveMode
 					settings.preserveMetadata = preserveMetadata
 					settings.convertToSRGB = convertToSRGB
 					settings.enableGifsicle = enableGifsicle
-					await ProcessingManager.shared.process(urls: files, settings: settings)
+
+					self.isProcessing = true
+
+					// Use SecureIntegrationLayer for processing
+					SecureIntegrationLayer.shared.compressFiles(
+						urls: files,
+						settings: settings,
+						progressCallback: { processed, total in
+							Task { @MainActor in
+								self.sessionStats.processedCount = processed
+								self.sessionStats.totalInBatch = total
+							}
+						},
+						completion: { results in
+							Task { @MainActor in
+								// Update session stats with results
+								for result in results where result.status == "success" {
+									let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
+									self.sessionStats.savedBytes += saved
+								}
+								self.isProcessing = false
+								AppUIManager.shared.showDockBounce()
+							}
+						}
+					)
 				}
 			}
 		}

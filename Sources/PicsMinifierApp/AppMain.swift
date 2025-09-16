@@ -36,13 +36,12 @@ struct PicsMinifierMainApp: App {
 		// Инициализируем crash logger
 		CrashLogger.shared.logInfo("Application starting", context: "AppMain")
 
-		// Применяем иконки при старте
-		do {
-			AppUIManager.shared.applyAppIcons()
-			CrashLogger.shared.logInfo("App icons applied", context: "AppMain")
-		} catch {
-			CrashLogger.shared.logError(error, context: "AppMain.applyAppIcons")
-		}
+		// Отключаем иконки полностью для исправления крашей
+		// DispatchQueue.main.async {
+		//     AppUIManager.shared.applyAppIcons()
+		//     CrashLogger.shared.logInfo("App icons applied", context: "AppMain")
+		// }
+		CrashLogger.shared.logInfo("App icons disabled to prevent crashes", context: "AppMain")
 
 		// Сбросим CSV-лог и начнём заново с новым форматом
 		let logURL = AppPaths.logCSVURL()

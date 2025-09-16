@@ -10,20 +10,12 @@ final class AppUIManager {
 	private init() {}
 
 	func applyAppIcons() {
-		let bundle = Bundle.module
-		if let fallbackURL = bundle.url(forResource: "appstore", withExtension: "png", subdirectory: "AppIcons"),
-		   let image = NSImage(contentsOf: fallbackURL) {
-			NSApp.applicationIconImage = image
-			return
-		}
-		if let dockURL = bundle.url(forResource: "512", withExtension: "png", subdirectory: "AppIcons/Assets.xcassets/AppIcon.appiconset"),
-		   let image = NSImage(contentsOf: dockURL) {
-			NSApp.applicationIconImage = image
-		}
+		// Полностью пустая функция для отладки
+		print("✅ applyAppIcons() called successfully")
 	}
 
 	private func loadMenuBarImage() -> NSImage? {
-		let bundle = Bundle.module
+		let bundle = Bundle.main
 
 		// Сначала пробуем загрузить новую PDF иконку для menu bar
 		if let pdfURL = bundle.url(forResource: "compression_icon_simple", withExtension: "pdf"),
@@ -32,28 +24,58 @@ final class AppUIManager {
 			return image
 		}
 
-		// Fallback на старые PNG иконки
+		// Fallback на PNG иконки
 		if let imgURL = bundle.url(forResource: "appstore", withExtension: "png", subdirectory: "AppIcons"),
 		   let image = NSImage(contentsOf: imgURL) {
 			return image
 		}
-		if let imgURL = bundle.url(forResource: "32", withExtension: "png", subdirectory: "AppIcons/Assets.xcassets/AppIcon.appiconset") {
-			return NSImage(contentsOf: imgURL)
+
+		if let imgURL = bundle.url(forResource: "appstore", withExtension: "png"),
+		   let image = NSImage(contentsOf: imgURL) {
+			return image
 		}
+
+		if let imgURL = bundle.url(forResource: "32", withExtension: "png", subdirectory: "Assets.xcassets/AppIcon.appiconset"),
+		   let image = NSImage(contentsOf: imgURL) {
+			return image
+		}
+
 		return nil
 	}
 
+	private var windowWasVisibleBeforeAccessory = false
+
 	func setDockIconVisible(_ visible: Bool) {
 		if visible {
+			// Возвращаемся в обычный режим
 			NSApp.setActivationPolicy(.regular)
-		} else {
-			// Сохраняем окна при переключении в accessory режим
-			let wasVisible = NSApp.windows.first?.isVisible ?? false
-			NSApp.setActivationPolicy(.accessory)
-			// Восстанавливаем видимость окон, если они были видны
-			if wasVisible, let mainWindow = NSApp.windows.first {
-				mainWindow.orderFront(nil)
+
+			// Восстанавливаем окно если оно было видно до перехода в accessory режим
+			if windowWasVisibleBeforeAccessory {
+				DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+					if let mainWindow = NSApp.windows.first {
+						mainWindow.level = .normal // Возвращаем обычный уровень
+						mainWindow.makeKeyAndOrderFront(nil)
+						mainWindow.orderFrontRegardless()
+					}
+				}
+				windowWasVisibleBeforeAccessory = false
 			}
+		} else {
+			// Сохраняем состояние видимости главного окна и ссылку на него
+			let mainWindow = NSApp.windows.first
+			windowWasVisibleBeforeAccessory = mainWindow?.isVisible ?? false
+
+			if windowWasVisibleBeforeAccessory, let window = mainWindow {
+				// СНАЧАЛА устанавливаем floating уровень ПЕРЕД переходом в accessory
+				window.level = .floating
+				window.orderFrontRegardless()
+			}
+
+			// Переходим в accessory режим (без иконки в доке)
+			NSApp.setActivationPolicy(.accessory)
+
+			// Теперь окно уже защищено floating уровнем и не должно исчезнуть
 		}
 	}
 
@@ -76,17 +98,14 @@ final class AppUIManager {
 					item.button?.title = "🗜️"
 				}
 				let menu = NSMenu()
+				let openApp = NSMenuItem(title: NSLocalizedString("Открыть приложение", comment: "Open App"), action: #selector(openMainWindow), keyEquivalent: "o")
+				openApp.target = self
 				let openSettings = NSMenuItem(title: NSLocalizedString("Открыть настройки…", comment: ""), action: #selector(openSettings), keyEquivalent: ",")
 				openSettings.target = self
-				let openLogs = NSMenuItem(title: NSLocalizedString("Открыть папку логов", comment: ""), action: #selector(openLogsFolder), keyEquivalent: "l")
-				openLogs.target = self
-				let openCSV = NSMenuItem(title: NSLocalizedString("Открыть CSV лог", comment: ""), action: #selector(openCSVLog), keyEquivalent: "h")
-				openCSV.target = self
 				let quitItem = NSMenuItem(title: NSLocalizedString("Выйти", comment: ""), action: #selector(quitApp), keyEquivalent: "q")
 				quitItem.target = self
+				menu.addItem(openApp)
 				menu.addItem(openSettings)
-				menu.addItem(openLogs)
-				menu.addItem(openCSV)
 				menu.addItem(NSMenuItem.separator())
 				menu.addItem(quitItem)
 				item.menu = menu
@@ -151,14 +170,20 @@ final class AppUIManager {
 		NSWorkspace.shared.open(url)
 	}
 
-	@objc func openSettings() {
-		// Принудительно активируем приложение и показываем главное окно
+	@objc func openMainWindow() {
+		// Принудительно активируем приложение
 		NSApp.activate(ignoringOtherApps: true)
 
-		// Убеждаемся, что главное окно видимо
+		// Показываем главное окно
 		if let mainWindow = NSApp.windows.first {
 			mainWindow.makeKeyAndOrderFront(nil)
+			mainWindow.orderFrontRegardless()
 		}
+	}
+
+	@objc func openSettings() {
+		// Сначала открываем главное окно
+		openMainWindow()
 
 		// Отправляем уведомление для открытия настроек
 		NotificationCenter.default.post(name: .openSettings, object: nil)

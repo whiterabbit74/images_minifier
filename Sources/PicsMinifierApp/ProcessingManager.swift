@@ -2,16 +2,13 @@ import Foundation
 import PicsMinifierCore
 import AppKit
 
-extension Notification.Name {
-	static let processingResult = Notification.Name("PicsMinifier.processingResult")
-    static let processingFinished = Notification.Name("PicsMinifier.processingFinished")
-}
-
 final class ProcessingManager {
 	static let shared = ProcessingManager()
-	private let service = CompressionService()
+	private let service = CompressionService() // Main service
+	private let legacyService = CompressionService() // Fallback
 	private let logger = CSVLogger(logURL: AppPaths.logCSVURL())
     private var isCancelled: Bool = false
+    private var useModernCompressors: Bool = true
 
 	private init() {}
 
@@ -23,10 +20,11 @@ final class ProcessingManager {
 			// Первичное окно
 			for _ in 0..<maxConcurrent {
 				guard let url = it.next() else { break }
-				group.addTask { [service, logger] in
+				group.addTask { [weak self] in
+					guard let self = self else { return }
 					if Task.isCancelled { return }
-					let result = service.compressFile(at: url, settings: settings)
-					logger?.append(result)
+					let result = self.compressFile(at: url, settings: settings)
+					self.logger?.append(result)
 					NotificationCenter.default.post(name: .processingResult, object: result)
 					if result.status == "ok" && result.originalSizeBytes > result.newSizeBytes {
 						DispatchQueue.main.async {
@@ -40,10 +38,11 @@ final class ProcessingManager {
 			while let url = it.next() {
 				if isCancelled { break }
 				_ = await group.next()
-				group.addTask { [service, logger] in
+				group.addTask { [weak self] in
+					guard let self = self else { return }
 					if Task.isCancelled { return }
-					let result = service.compressFile(at: url, settings: settings)
-					logger?.append(result)
+					let result = self.compressFile(at: url, settings: settings)
+					self.logger?.append(result)
 					NotificationCenter.default.post(name: .processingResult, object: result)
 					if result.status == "ok" && result.originalSizeBytes > result.newSizeBytes {
 						DispatchQueue.main.async {
@@ -66,6 +65,27 @@ final class ProcessingManager {
     func cancel() {
         isCancelled = true
     }
+
+    // MARK: - Private Methods
+
+    private func compressFile(at url: URL, settings: AppSettings) -> ProcessResult {
+        // Using legacy compression service only (modern compressors disabled)
+        return service.compressFile(at: url, settings: settings)
+    }
+
+    // MARK: - Public Configuration
+
+    func setUseModernCompressors(_ enabled: Bool) {
+        useModernCompressors = enabled
+        print("🔧 Modern compressors: \(enabled ? "enabled" : "disabled")")
+    }
+
+    // Compression capabilities disabled - modern service not available
+    /*
+    func getCompressionCapabilities() -> CompressionCapabilities {
+        return modernService.getCompressionCapabilities()
+    }
+    */
 }
 
 

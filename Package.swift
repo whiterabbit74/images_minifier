@@ -17,15 +17,14 @@ let package = Package(
 			path: "Sources/ThirdParty/WebPShims",
 			publicHeadersPath: ".",
 			cSettings: [
-				.define("WEBP_EMBEDDED", to: "1"),
-				.headerSearchPath("../libwebp"),
-				.headerSearchPath("../libwebp/include")
+				.define("WEBP_EMBEDDED", to: "1")
 			]
 		),
 		.target(
 			name: "PicsMinifierCore",
 			dependencies: ["WebPShims"],
 			path: "Sources/PicsMinifierCore",
+			exclude: ["WebPStub.swift"],
 			resources: [
 				.process("Resources")
 			]
@@ -33,10 +32,7 @@ let package = Package(
 		.executableTarget(
 			name: "PicsMinifierApp",
 			dependencies: ["PicsMinifierCore"],
-			path: "Sources/PicsMinifierApp",
-			resources: [
-				.process("Resources")
-			]
+			path: "Sources/PicsMinifierApp"
 		),
 		.testTarget(
 			name: "PicsMinifierAppTests",

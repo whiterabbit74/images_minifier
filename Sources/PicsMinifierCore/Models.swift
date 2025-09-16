@@ -52,4 +52,28 @@ public struct ProcessResult: Codable, Equatable {
 	}
 }
 
+public struct SessionStats: Codable, Equatable {
+	public var totalFiles: Int = 0
+	public var processedFiles: Int = 0
+	public var totalOriginalSize: Int64 = 0
+	public var totalCompressedSize: Int64 = 0
+	public var errorCount: Int = 0
+	public var totalInBatch: Int = 0
+
+	public init() {}
+
+	public var processedCount: Int {
+		return processedFiles
+	}
+
+	public var compressionRatio: Double {
+		guard totalOriginalSize > 0 else { return 0.0 }
+		return Double(totalCompressedSize) / Double(totalOriginalSize)
+	}
+
+	public var savedBytes: Int64 {
+		return totalOriginalSize - totalCompressedSize
+	}
+}
+
 

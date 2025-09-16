@@ -6,6 +6,8 @@ extension Notification.Name {
     static let openFiles = Notification.Name("PicsMinifier.openFiles")
     static let openFolder = Notification.Name("PicsMinifier.openFolder")
     static let cancelProcessing = Notification.Name("PicsMinifier.cancelProcessing")
+    static let processingResult = Notification.Name("PicsMinifier.processingResult")
+    static let processingFinished = Notification.Name("PicsMinifier.processingFinished")
 }
 
 
