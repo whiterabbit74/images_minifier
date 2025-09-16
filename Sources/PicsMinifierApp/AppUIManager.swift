@@ -17,27 +17,27 @@ final class AppUIManager {
 	private func loadMenuBarImage() -> NSImage? {
 		let bundle = Bundle.main
 
-		// Сначала пробуем загрузить новую PDF иконку для menu bar
-		if let pdfURL = bundle.url(forResource: "compression_icon_simple", withExtension: "pdf"),
-		   let image = NSImage(contentsOf: pdfURL) {
-			// PDF векторная иконка будет идеально масштабироваться для menu bar
-			return image
+		// Try to load app icon sizes for menu bar - start with smaller sizes
+		let iconSizes = ["32", "16", "64", "128"]
+
+		for size in iconSizes {
+			if let imgURL = bundle.url(forResource: size, withExtension: "png", subdirectory: "Assets.xcassets/AppIcon.appiconset"),
+			   let image = NSImage(contentsOf: imgURL) {
+				return image
+			}
 		}
 
-		// Fallback на PNG иконки
-		if let imgURL = bundle.url(forResource: "appstore", withExtension: "png", subdirectory: "AppIcons"),
-		   let image = NSImage(contentsOf: imgURL) {
-			return image
+		// Fallback: try to load from Resources directory
+		for size in iconSizes {
+			if let imgURL = bundle.url(forResource: size, withExtension: "png"),
+			   let image = NSImage(contentsOf: imgURL) {
+				return image
+			}
 		}
 
-		if let imgURL = bundle.url(forResource: "appstore", withExtension: "png"),
-		   let image = NSImage(contentsOf: imgURL) {
-			return image
-		}
-
-		if let imgURL = bundle.url(forResource: "32", withExtension: "png", subdirectory: "Assets.xcassets/AppIcon.appiconset"),
-		   let image = NSImage(contentsOf: imgURL) {
-			return image
+		// Last fallback: try to get app icon
+		if let appIcon = NSApp.applicationIconImage {
+			return appIcon
 		}
 
 		return nil

@@ -46,10 +46,9 @@ struct ContentView: View {
 				.help(NSLocalizedString("Закрыть настройки", comment: ""))
 				.padding(6)
 
-				// Полупрозрачный оверлей для клика снаружи
+				// Background overlay - no click to close
 				Color.black.opacity(0.08)
 					.ignoresSafeArea()
-					.onTapGesture { withAnimation { showingSettings = false } }
 					.transition(.opacity)
 					.zIndex(0)
 			} else {
@@ -185,14 +184,21 @@ struct ContentView: View {
 		}
 		.onChange(of: appearanceMode) { newMode in
 			UserDefaults.standard.set(newMode.rawValue, forKey: "ui.appearanceMode")
-			// Efficient theme switching without redundant operations
+			// Theme switching - let SwiftUI handle auto mode
 			switch newMode {
 			case .light:
 				NSApp.appearance = NSAppearance(named: .aqua)
 			case .dark:
 				NSApp.appearance = NSAppearance(named: .darkAqua)
 			case .auto:
+				// Clear NSApp.appearance to follow system theme
 				NSApp.appearance = nil
+				// Force SwiftUI to re-evaluate theme
+				DispatchQueue.main.async {
+					for window in NSApp.windows {
+						window.appearance = nil
+					}
+				}
 			}
 		}
 		.onChange(of: showDockIcon) { newValue in
