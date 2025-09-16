@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(CryptoKit)
 import CryptoKit
+#endif
 
 /// Utility class for security-related operations
 public final class SecurityUtils {
@@ -8,30 +10,56 @@ public final class SecurityUtils {
 
     /// Validates file path to prevent directory traversal attacks
     public static func validateFilePath(_ path: String) throws -> String {
-        let normalizedPath = (path as NSString).standardizingPath
+        let expandedPath = (path as NSString).expandingTildeInPath
+        let inputURL = URL(fileURLWithPath: expandedPath)
 
-        // Check for directory traversal patterns
-        if normalizedPath.contains("../") || normalizedPath.contains("..\\") {
+        if inputURL.pathComponents.contains("..") {
             throw SecurityError.pathTraversal
         }
 
-        // Ensure path doesn't escape allowed directories
-        let allowedPrefixes = [
-            NSTemporaryDirectory(),
-            NSHomeDirectory(),
-            "/Users",
-            "/tmp"
-        ]
+        let resolvedURL = inputURL.resolvingSymlinksInPath()
+        let normalizedURL = resolvedURL.standardizedFileURL
 
-        let isAllowed = allowedPrefixes.contains { prefix in
-            normalizedPath.hasPrefix(prefix)
+        var allowedDirectories: [URL] = []
+        let fileManager = FileManager.default
+
+        let homeDirectory = URL(fileURLWithPath: NSHomeDirectory()).standardizedFileURL
+        allowedDirectories.append(homeDirectory)
+
+        let userHome = fileManager.homeDirectoryForCurrentUser.standardizedFileURL
+        if userHome != homeDirectory {
+            allowedDirectories.append(userHome)
+        }
+
+        let tmpDirectory = fileManager.temporaryDirectory.standardizedFileURL
+        allowedDirectories.append(tmpDirectory)
+
+        let legacyTmp = URL(fileURLWithPath: NSTemporaryDirectory()).standardizedFileURL
+        if legacyTmp != tmpDirectory {
+            allowedDirectories.append(legacyTmp)
+        }
+
+        allowedDirectories.append(URL(fileURLWithPath: "/tmp").standardizedFileURL)
+        allowedDirectories.append(URL(fileURLWithPath: "/private/tmp").standardizedFileURL)
+        allowedDirectories.append(URL(fileURLWithPath: "/Volumes").standardizedFileURL)
+
+        let isAllowed = allowedDirectories.contains { baseURL in
+            let basePath = baseURL.path
+            let normalizedPath = normalizedURL.path
+
+            if normalizedPath == basePath {
+                return true
+            }
+
+            let normalizedBase = basePath.hasSuffix("/") ? basePath : basePath + "/"
+            return normalizedPath.hasPrefix(normalizedBase)
         }
 
         if !isAllowed {
             throw SecurityError.unauthorizedPath
         }
 
-        return normalizedPath
+        return normalizedURL.path
     }
 
     /// Sanitizes filename to prevent path traversal and other security issues
@@ -74,14 +102,19 @@ public final class SecurityUtils {
         var sanitized: [String] = []
 
         for arg in arguments {
-            // Remove potentially dangerous characters
-            let dangerous = ["&", "|", ";", "`", "$", "(", ")", "{", "}", "[", "]", "\"", "'", "\\"]
             var safe = arg
 
-            for char in dangerous {
-                if safe.contains(char) {
-                    throw SecurityError.unsafeArgument(arg)
-                }
+            let disallowedCharacters = CharacterSet(charactersIn: "&|;`><")
+            if safe.rangeOfCharacter(from: disallowedCharacters) != nil {
+                throw SecurityError.unsafeArgument(arg)
+            }
+
+            if safe.contains("\0") || safe.contains("\n") || safe.contains("\r") {
+                throw SecurityError.unsafeArgument(arg)
+            }
+
+            if safe.contains("$(") {
+                throw SecurityError.unsafeArgument(arg)
             }
 
             // Validate file paths in arguments
@@ -98,12 +131,16 @@ public final class SecurityUtils {
     // MARK: - Secure Temporary Files
 
     /// Creates cryptographically secure temporary file name
-    public static func createSecureTempFileName(fileExtension: String = "") -> String {
+    public static func createSecureTempFileName(`extension`: String = "") -> String {
+        #if canImport(CryptoKit)
         let randomBytes = SymmetricKey(size: .bits256)
         let hash = SHA256.hash(data: randomBytes.withUnsafeBytes { Data($0) })
         let hashString = hash.compactMap { String(format: "%02x", $0) }.joined()
+        #else
+        let hashString = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        #endif
 
-        return fileExtension.isEmpty ? hashString : "\(hashString).\(fileExtension)"
+        return `extension`.isEmpty ? hashString : "\(hashString).\(`extension`)"
     }
 
     /// Creates secure temporary directory with proper permissions
@@ -141,15 +178,21 @@ public final class SecurityUtils {
 
         // Create isolated environment
         var environment = ProcessInfo.processInfo.environment
-        // Remove potentially sensitive environment variables
-        let sensitiveKeys = ["DYLD_", "LIBRARY_PATH", "PATH", "HOME"]
+        let sensitivePrefixes = ["DYLD_", "LD_", "LIBRARY_PATH"]
         for key in environment.keys {
-            for sensitive in sensitiveKeys {
-                if key.hasPrefix(sensitive) {
-                    environment.removeValue(forKey: key)
-                }
+            if sensitivePrefixes.contains(where: { key.hasPrefix($0) }) {
+                environment.removeValue(forKey: key)
             }
         }
+
+        if environment["PATH"] == nil {
+            environment["PATH"] = "/usr/bin:/bin"
+        }
+
+        if environment["HOME"] == nil {
+            environment["HOME"] = NSHomeDirectory()
+        }
+
         process.environment = environment
 
         // Set up pipes with size limits
@@ -160,6 +203,52 @@ public final class SecurityUtils {
 
         // Start process
         try process.run()
+
+        let stdoutHandle = stdoutPipe.fileHandleForReading
+        let stderrHandle = stderrPipe.fileHandleForReading
+
+        @Sendable func captureOutput(from handle: FileHandle, limit: Int) -> Data {
+            var buffer = Data()
+            let chunkSize = 4096
+
+            while true {
+                let chunk = handle.readData(ofLength: chunkSize)
+                if chunk.isEmpty {
+                    break
+                }
+
+                if buffer.count < limit {
+                    let remaining = limit - buffer.count
+                    if remaining >= chunk.count {
+                        buffer.append(chunk)
+                    } else {
+                        buffer.append(chunk.prefix(remaining))
+                    }
+                }
+            }
+
+            return buffer
+        }
+
+        var stdoutData = Data()
+        var stderrData = Data()
+        let captureGroup = DispatchGroup()
+        let stdoutStorageQueue = DispatchQueue(label: "com.picsminifier.stdout")
+        let stderrStorageQueue = DispatchQueue(label: "com.picsminifier.stderr")
+
+        captureGroup.enter()
+        DispatchQueue.global(qos: .utility).async {
+            let data = captureOutput(from: stdoutHandle, limit: maxOutputSize)
+            stdoutStorageQueue.sync { stdoutData = data }
+            captureGroup.leave()
+        }
+
+        captureGroup.enter()
+        DispatchQueue.global(qos: .utility).async {
+            let data = captureOutput(from: stderrHandle, limit: maxOutputSize)
+            stderrStorageQueue.sync { stderrData = data }
+            captureGroup.leave()
+        }
 
         // Implement timeout
         let processTask = Task {
@@ -186,12 +275,15 @@ public final class SecurityUtils {
             }
         } catch {
             process.terminate()
+            stdoutHandle.closeFile()
+            stderrHandle.closeFile()
+            captureGroup.wait()
             throw error
         }
 
-        // Read output with size limits
-        let stdoutData = stdoutPipe.fileHandleForReading.readData(ofLength: maxOutputSize)
-        let stderrData = stderrPipe.fileHandleForReading.readData(ofLength: maxOutputSize)
+        captureGroup.wait()
+        stdoutHandle.closeFile()
+        stderrHandle.closeFile()
 
         return SecurityUtils.SecureProcessResult(
             terminationStatus: terminationStatus,
@@ -209,7 +301,11 @@ public final class SecurityUtils {
         try data.write(to: tempURL)
 
         // Atomic move
-        _ = try FileManager.default.replaceItem(at: url, withItemAt: tempURL, backupItemName: nil, options: [], resultingItemURL: nil)
+        let fm = FileManager.default
+        if fm.fileExists(atPath: url.path) {
+            try fm.removeItem(at: url)
+        }
+        try fm.moveItem(at: tempURL, to: url)
     }
 
     /// Secure file copy with validation
@@ -261,14 +357,27 @@ public final class SecurityUtils {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
-        // Set minimal environment
-        process.environment = [
-            "PATH": "/usr/bin:/bin",
-            "HOME": NSTemporaryDirectory()
-        ]
+        var environment = ProcessInfo.processInfo.environment
+        let sensitivePrefixes = ["DYLD_", "LD_", "LIBRARY_PATH"]
+        for key in environment.keys {
+            if sensitivePrefixes.contains(where: { key.hasPrefix($0) }) {
+                environment.removeValue(forKey: key)
+            }
+        }
+
+        if environment["PATH"] == nil {
+            environment["PATH"] = "/usr/bin:/bin"
+        }
+
+        if environment["HOME"] == nil {
+            environment["HOME"] = NSHomeDirectory()
+        }
+
+        process.environment = environment
 
         var didTimeout = false
         let semaphore = DispatchSemaphore(value: 0)
+        let timeoutStateQueue = DispatchQueue(label: "com.picsminifier.timeoutstate")
 
         // Start process
         try process.run()
@@ -276,7 +385,7 @@ public final class SecurityUtils {
         // Set up timeout
         DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
             if process.isRunning {
-                didTimeout = true
+                timeoutStateQueue.sync { didTimeout = true }
                 process.terminate()
                 semaphore.signal()
             }
@@ -286,7 +395,7 @@ public final class SecurityUtils {
         process.waitUntilExit()
         semaphore.signal()
 
-        if didTimeout {
+        if timeoutStateQueue.sync(execute: { didTimeout }) {
             throw SecurityError.processTimeout
         }
 

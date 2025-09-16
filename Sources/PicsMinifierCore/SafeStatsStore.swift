@@ -23,7 +23,7 @@ public final class SafeStatsStore {
 
     public func totalSavedBytes() -> Int64 {
         return queue.sync {
-            return userDefaults.object(forKey: "totalSavedBytes") as? Int64 ?? 0
+            return self.currentSavedBytes()
         }
     }
 
@@ -40,7 +40,7 @@ public final class SafeStatsStore {
         guard bytes > 0 && bytes < maxValue else { return }
 
         queue.async {
-            let current = self.userDefaults.object(forKey: "totalSavedBytes") as? Int64 ?? 0
+            let current = self.currentSavedBytes()
             // Prevent overflow
             let newValue = current < self.maxValue - bytes ? current + bytes : self.maxValue
             self.userDefaults.set(newValue, forKey: "totalSavedBytes")
@@ -48,7 +48,7 @@ public final class SafeStatsStore {
     }
 
     public func reset() {
-        queue.async {
+        queue.sync {
             self.userDefaults.removeObject(forKey: "processedCount")
             self.userDefaults.removeObject(forKey: "totalSavedBytes")
             self.userDefaults.synchronize()
@@ -62,7 +62,7 @@ public final class SafeStatsStore {
 
         queue.async {
             let currentCount = self.userDefaults.integer(forKey: "processedCount")
-            let currentBytes = self.userDefaults.object(forKey: "totalSavedBytes") as? Int64 ?? 0
+            let currentBytes = self.currentSavedBytes()
 
             // Safe arithmetic with overflow protection
             let newCount = currentCount < Int.max - processedFiles ? currentCount + processedFiles : Int.max
@@ -79,8 +79,18 @@ public final class SafeStatsStore {
     public func exportStats() -> (processedCount: Int, totalSavedBytes: Int64) {
         return queue.sync {
             let count = self.userDefaults.integer(forKey: "processedCount")
-            let bytes = self.userDefaults.object(forKey: "totalSavedBytes") as? Int64 ?? 0
+            let bytes = self.currentSavedBytes()
             return (count, bytes)
         }
+    }
+
+    private func currentSavedBytes() -> Int64 {
+        if let number = userDefaults.object(forKey: "totalSavedBytes") as? NSNumber {
+            return number.int64Value
+        }
+        if let value = userDefaults.object(forKey: "totalSavedBytes") as? Int64 {
+            return value
+        }
+        return 0
     }
 }

@@ -1,4 +1,6 @@
 import Foundation
+
+#if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
 
 // Legacy fallback service
@@ -11,8 +13,14 @@ public final class SmartCompressor {
         // Configuration-based tool discovery with fallbacks
         static func findTool(name: String) -> String? {
             // Check environment variable first
-            if let envPath = ProcessInfo.processInfo.environment["\(name.uppercased())_PATH"] {
-                if FileManager.default.isExecutableFile(atPath: envPath) {
+            let envCandidates = [
+                "\(name.uppercased())_PATH",
+                "PICS_\(name.uppercased())_PATH"
+            ]
+
+            for key in envCandidates {
+                if let envPath = ProcessInfo.processInfo.environment[key],
+                   FileManager.default.isExecutableFile(atPath: envPath) {
                     return envPath
                 }
             }
@@ -23,10 +31,25 @@ public final class SmartCompressor {
                 "/usr/local/bin/\(name)",              // Intel Homebrew
                 "/opt/local/bin/\(name)",              // MacPorts
                 "/usr/bin/\(name)",                    // System
-                "/opt/homebrew/opt/mozjpeg/bin/\(name)" // MozJPEG special case
+                "/opt/homebrew/opt/mozjpeg/bin/\(name)",
+                "/usr/local/opt/mozjpeg/bin/\(name)"
             ]
 
             return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+                ?? Self.findInPATH(name: name)
+        }
+
+        private static func findInPATH(name: String) -> String? {
+            guard let pathEnv = ProcessInfo.processInfo.environment["PATH"] else { return nil }
+            let fm = FileManager.default
+
+            for directory in pathEnv.split(separator: ":") {
+                let potential = String(directory).appending("/\(name)")
+                if fm.isExecutableFile(atPath: potential) {
+                    return potential
+                }
+            }
+            return nil
         }
 
         static var mozjpegPath: String? { findTool(name: "cjpeg") }
@@ -118,7 +141,6 @@ public final class SmartCompressor {
     }
 
     private func compressJPEGWithMozJPEG(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
-        // Security: Validate paths before processing
         do {
             let _ = try SecurityUtils.validateFilePath(inputURL.path)
             let _ = try SecurityUtils.validateFilePath(outputURL.path)
@@ -135,20 +157,29 @@ public final class SmartCompressor {
             )
         }
 
-        // Check tool availability
         guard let toolPath = CompressionTools.mozjpegPath else {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
         let quality = qualityFor(settings.preset)
         let qualityValue = Int(quality * 100)
+        let fileManager = FileManager.default
+        let overwritingSource = inputURL.path == outputURL.path
 
-        // Security: Use SecurityUtils for safe process execution
+        let destinationURL: URL
+        if overwritingSource {
+            let tempName = SecurityUtils.createSecureTempFileName(extension: inputURL.pathExtension.isEmpty ? "jpg" : inputURL.pathExtension)
+            destinationURL = fileManager.temporaryDirectory.appendingPathComponent(tempName)
+        } else {
+            destinationURL = outputURL
+            try? fileManager.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        }
+
         let arguments = [
             "-quality", "\(qualityValue)",
             "-optimize",
             "-progressive",
-            "-outfile", outputURL.path,
+            "-outfile", destinationURL.path,
             inputURL.path
         ]
 
@@ -156,33 +187,71 @@ public final class SmartCompressor {
             let result = try SecurityUtils.executeSecureProcessSync(
                 executable: URL(fileURLWithPath: toolPath),
                 arguments: arguments,
-                timeout: 30.0, // 30 second timeout
-                maxOutputSize: 1024 * 1024 // 1MB output limit
+                timeout: 30.0,
+                maxOutputSize: 1024 * 1024
             )
 
             if result.terminationStatus == 0 {
-                let newSize = (try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+                let producedSize = (try? fileManager.attributesOfItem(atPath: destinationURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+
+                if producedSize >= originalSize {
+                    if destinationURL != inputURL {
+                        try? fileManager.removeItem(at: destinationURL)
+                    }
+                    return ProcessResult(
+                        sourceFormat: "jpeg",
+                        targetFormat: "jpeg",
+                        originalPath: inputURL.path,
+                        outputPath: inputURL.path,
+                        originalSizeBytes: originalSize,
+                        newSizeBytes: originalSize,
+                        status: "skipped",
+                        reason: "no-gain"
+                    )
+                }
+
+                let finalOutputURL: URL
+                if overwritingSource {
+                    do {
+                        if fileManager.fileExists(atPath: inputURL.path) {
+                            try fileManager.removeItem(at: inputURL)
+                        }
+                        try fileManager.moveItem(at: destinationURL, to: inputURL)
+                        finalOutputURL = inputURL
+                    } catch {
+                        try? fileManager.removeItem(at: destinationURL)
+                        return legacyService.compressFile(at: inputURL, settings: settings)
+                    }
+                } else {
+                    finalOutputURL = outputURL
+                }
+
                 return ProcessResult(
                     sourceFormat: "jpeg",
                     targetFormat: "jpeg",
                     originalPath: inputURL.path,
-                    outputPath: outputURL.path,
+                    outputPath: finalOutputURL.path,
                     originalSizeBytes: originalSize,
-                    newSizeBytes: newSize,
+                    newSizeBytes: producedSize,
                     status: "success",
                     reason: "mozjpeg-compression"
                 )
             }
         } catch {
-            // Fallback to ImageIO if MozJPEG fails
+            if overwritingSource {
+                try? fileManager.removeItem(at: destinationURL)
+            }
             return legacyService.compressFile(at: inputURL, settings: settings)
+        }
+
+        if overwritingSource {
+            try? fileManager.removeItem(at: destinationURL)
         }
 
         return legacyService.compressFile(at: inputURL, settings: settings)
     }
 
     private func compressPNGWithOxipng(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
-        // Security: Validate paths before processing
         do {
             let _ = try SecurityUtils.validateFilePath(inputURL.path)
             let _ = try SecurityUtils.validateFilePath(outputURL.path)
@@ -199,16 +268,27 @@ public final class SmartCompressor {
             )
         }
 
-        // Check tool availability
         guard let toolPath = CompressionTools.oxipngPath else {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
         let level = levelFor(settings.preset)
+        let fileManager = FileManager.default
+        let overwritingSource = inputURL.path == outputURL.path
+
+        let destinationURL: URL
+        if overwritingSource {
+            let tempName = SecurityUtils.createSecureTempFileName(extension: inputURL.pathExtension.isEmpty ? "png" : inputURL.pathExtension)
+            destinationURL = fileManager.temporaryDirectory.appendingPathComponent(tempName)
+        } else {
+            destinationURL = outputURL
+            try? fileManager.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        }
+
         let arguments = [
             "--opt", "\(level)",
             "--strip", "safe",
-            "--out", outputURL.path,
+            "--out", destinationURL.path,
             inputURL.path
         ]
 
@@ -216,25 +296,65 @@ public final class SmartCompressor {
             let result = try SecurityUtils.executeSecureProcessSync(
                 executable: URL(fileURLWithPath: toolPath),
                 arguments: arguments,
-                timeout: 60.0, // PNG can take longer
+                timeout: 60.0,
                 maxOutputSize: 1024 * 1024
             )
 
             if result.terminationStatus == 0 {
-                let newSize = (try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+                let producedSize = (try? fileManager.attributesOfItem(atPath: destinationURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+
+                if producedSize >= originalSize {
+                    if destinationURL != inputURL {
+                        try? fileManager.removeItem(at: destinationURL)
+                    }
+                    return ProcessResult(
+                        sourceFormat: "png",
+                        targetFormat: "png",
+                        originalPath: inputURL.path,
+                        outputPath: inputURL.path,
+                        originalSizeBytes: originalSize,
+                        newSizeBytes: originalSize,
+                        status: "skipped",
+                        reason: "no-gain"
+                    )
+                }
+
+                let finalOutputURL: URL
+                if overwritingSource {
+                    do {
+                        if fileManager.fileExists(atPath: inputURL.path) {
+                            try fileManager.removeItem(at: inputURL)
+                        }
+                        try fileManager.moveItem(at: destinationURL, to: inputURL)
+                        finalOutputURL = inputURL
+                    } catch {
+                        try? fileManager.removeItem(at: destinationURL)
+                        return legacyService.compressFile(at: inputURL, settings: settings)
+                    }
+                } else {
+                    finalOutputURL = outputURL
+                }
+
                 return ProcessResult(
                     sourceFormat: "png",
                     targetFormat: "png",
                     originalPath: inputURL.path,
-                    outputPath: outputURL.path,
+                    outputPath: finalOutputURL.path,
                     originalSizeBytes: originalSize,
-                    newSizeBytes: newSize,
+                    newSizeBytes: producedSize,
                     status: "success",
                     reason: "oxipng-compression"
                 )
             }
         } catch {
+            if overwritingSource {
+                try? fileManager.removeItem(at: destinationURL)
+            }
             return legacyService.compressFile(at: inputURL, settings: settings)
+        }
+
+        if overwritingSource {
+            try? fileManager.removeItem(at: destinationURL)
         }
 
         return legacyService.compressFile(at: inputURL, settings: settings)
@@ -260,22 +380,26 @@ public final class SmartCompressor {
 
         // Check tool availability
         guard let toolPath = CompressionTools.gifsicle else {
-            return ProcessResult(
-                sourceFormat: "gif",
-                targetFormat: "gif",
-                originalPath: inputURL.path,
-                outputPath: inputURL.path,
-                originalSizeBytes: originalSize,
-                newSizeBytes: originalSize,
-                status: "error",
-                reason: "tool-not-available"
-            )
+            return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
         let level = levelFor(settings.preset)
+        let overwriteSameFile = inputURL.path == outputURL.path
+        let fm = FileManager.default
+
+        let tempOutputURL: URL
+        if overwriteSameFile {
+            let tempName = SecurityUtils.createSecureTempFileName(extension: "gif")
+            tempOutputURL = fm.temporaryDirectory.appendingPathComponent(tempName)
+        } else {
+            tempOutputURL = outputURL
+        }
+
+        try? fm.createDirectory(at: tempOutputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+
         let arguments = [
             "--optimize=\(level)",
-            "--output", outputURL.path,
+            "--output", tempOutputURL.path,
             inputURL.path
         ]
 
@@ -288,41 +412,61 @@ public final class SmartCompressor {
             )
 
             if result.terminationStatus == 0 {
-                let newSize = (try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+                let producedSize = (try? fm.attributesOfItem(atPath: tempOutputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+
+                if producedSize >= originalSize {
+                    if tempOutputURL != inputURL {
+                        try? fm.removeItem(at: tempOutputURL)
+                    }
+                    return ProcessResult(
+                        sourceFormat: "gif",
+                        targetFormat: "gif",
+                        originalPath: inputURL.path,
+                        outputPath: inputURL.path,
+                        originalSizeBytes: originalSize,
+                        newSizeBytes: originalSize,
+                        status: "skipped",
+                        reason: "no-gain"
+                    )
+                }
+
+                let finalOutputURL: URL
+
+                if overwriteSameFile {
+                    do {
+                        if fm.fileExists(atPath: inputURL.path) {
+                            try fm.removeItem(at: inputURL)
+                        }
+                        try fm.moveItem(at: tempOutputURL, to: inputURL)
+                        finalOutputURL = inputURL
+                    } catch {
+                        try? fm.removeItem(at: tempOutputURL)
+                        return legacyService.compressFile(at: inputURL, settings: settings)
+                    }
+                } else {
+                    finalOutputURL = outputURL
+                }
+
                 return ProcessResult(
                     sourceFormat: "gif",
                     targetFormat: "gif",
                     originalPath: inputURL.path,
-                    outputPath: outputURL.path,
+                    outputPath: finalOutputURL.path,
                     originalSizeBytes: originalSize,
-                    newSizeBytes: newSize,
+                    newSizeBytes: producedSize,
                     status: "success",
                     reason: "gifsicle-compression"
                 )
             }
         } catch {
-            return ProcessResult(
-                sourceFormat: "gif",
-                targetFormat: "gif",
-                originalPath: inputURL.path,
-                outputPath: inputURL.path,
-                originalSizeBytes: originalSize,
-                newSizeBytes: originalSize,
-                status: "error",
-                reason: "gifsicle-failed"
-            )
+            return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
-        return ProcessResult(
-            sourceFormat: "gif",
-            targetFormat: "gif",
-            originalPath: inputURL.path,
-            outputPath: inputURL.path,
-            originalSizeBytes: originalSize,
-            newSizeBytes: originalSize,
-            status: "error",
-            reason: "gifsicle-failed"
-        )
+        if overwriteSameFile {
+            try? FileManager.default.removeItem(at: tempOutputURL)
+        }
+
+        return legacyService.compressFile(at: inputURL, settings: settings)
     }
 
     private func computeOutputURL(for inputURL: URL, mode: SaveMode) -> URL {
@@ -338,7 +482,11 @@ public final class SmartCompressor {
             let sanitizedName = SecurityUtils.sanitizeFilename(nameWithoutExt)
             let sanitizedExt = SecurityUtils.sanitizeFilename(ext)
 
-            return dir.appendingPathComponent("\(sanitizedName)_compressed.\(sanitizedExt)")
+            if sanitizedExt.isEmpty {
+                return dir.appendingPathComponent("\(sanitizedName)_compressed")
+            } else {
+                return dir.appendingPathComponent("\(sanitizedName)_compressed.\(sanitizedExt)")
+            }
         case .separateFolder:
             let dir = inputURL.deletingLastPathComponent().appendingPathComponent("compressed")
 
@@ -375,3 +523,14 @@ public final class SmartCompressor {
         }
     }
 }
+#else
+
+public final class SmartCompressor {
+    public init() {}
+
+    public func compressFile(at inputURL: URL, settings: AppSettings) -> ProcessResult {
+        return CompressionService().compressFile(at: inputURL, settings: settings)
+    }
+}
+
+#endif

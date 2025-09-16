@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Mach)
+import Mach
+#endif
 
 /// Primary interface for all compression operations with security and performance optimization
 public final class SecureIntegrationLayer {
@@ -9,6 +12,7 @@ public final class SecureIntegrationLayer {
     private let smartCompressor: SmartCompressor
     private let maxConcurrentOperations = 4
     private let operationQueue: OperationQueue
+    private var currentTask: Task<Void, Never>?
 
     private init() {
         self.statsStore = SafeStatsStore.shared
@@ -32,18 +36,31 @@ public final class SecureIntegrationLayer {
     // MARK: - Main Compression Interface
 
     /// Compress files with secure validation and progress tracking
+    @discardableResult
     public func compressFiles(
         urls: [URL],
         settings: AppSettings,
         progressCallback: @escaping (Int, Int) -> Void = { _, _ in },
         completion: @escaping ([ProcessResult]) -> Void
-    ) {
-        Task {
-            let results = await processFiles(urls: urls, settings: settings, progressCallback: progressCallback)
+    ) -> Task<Void, Never> {
+        let task = Task { [weak self] in
+            guard let self = self else { return }
+            defer { self.currentTask = nil }
+
+            let results = await self.processFiles(urls: urls, settings: settings, progressCallback: progressCallback)
+            guard !Task.isCancelled else { return }
+
             await MainActor.run {
                 completion(results)
             }
         }
+
+        currentTask = task
+        return task
+    }
+
+    public func cancelCompression() {
+        currentTask?.cancel()
     }
 
     private func processFiles(
@@ -55,8 +72,15 @@ public final class SecureIntegrationLayer {
         let totalFiles = urls.count
         var processedCount = 0
 
+        if urls.isEmpty {
+            await MainActor.run {
+                progressCallback(0, 0)
+            }
+            return []
+        }
+
         // Process files in batches to manage memory
-        let batchSize = min(maxConcurrentOperations, urls.count)
+        let batchSize = max(1, min(maxConcurrentOperations, urls.count))
 
         for i in stride(from: 0, to: urls.count, by: batchSize) {
             let batch = Array(urls[i..<min(i + batchSize, urls.count)])
@@ -73,8 +97,11 @@ public final class SecureIntegrationLayer {
         }
 
         // Update statistics
-        let successfulResults = results.filter { $0.status == "success" }
-        let totalSavedBytes = successfulResults.reduce(0) { $0 + ($1.originalSizeBytes - $1.newSizeBytes) }
+        let successfulResults = results.filter { self.isSuccessful($0) }
+        let totalSavedBytes = successfulResults.reduce(Int64(0)) { partial, result in
+            let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
+            return partial + saved
+        }
 
         statsStore.updateStats(processedFiles: successfulResults.count, savedBytes: totalSavedBytes)
 
@@ -171,13 +198,14 @@ public final class SecureIntegrationLayer {
     }
 
     private func checkModernTools() -> Bool {
-        let tools = ["/opt/homebrew/bin/jpegoptim", "/opt/homebrew/bin/oxipng", "/opt/homebrew/bin/cwebp"]
+        let tools = ["/opt/homebrew/bin/cjpeg", "/opt/homebrew/bin/oxipng", "/opt/homebrew/bin/cwebp"]
         return tools.allSatisfy { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
     private func getAvailableMemory() -> Int64 {
+#if canImport(Mach)
         var info = mach_task_basic_info()
-        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
 
         let result = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
@@ -187,6 +215,9 @@ public final class SecureIntegrationLayer {
 
         guard result == KERN_SUCCESS else { return 0 }
         return Int64(info.resident_size)
+#else
+        return 0
+#endif
     }
 
     private func getDiskSpace() -> Int64 {
@@ -206,6 +237,11 @@ public final class SecureIntegrationLayer {
 
     public func resetStatistics() {
         statsStore.reset()
+    }
+
+    private func isSuccessful(_ result: ProcessResult) -> Bool {
+        let normalized = result.status.lowercased()
+        return normalized == "success" || normalized == "ok"
     }
 }
 

@@ -15,9 +15,10 @@ struct ContentView: View {
 	@State var preserveMetadata: Bool = true
 	@State var convertToSRGB: Bool = false
 	@State var enableGifsicle: Bool = true
-	@State var sessionStats: SessionStats = .init()
-	@State var showingSettings: Bool = false
-	@State var isProcessing: Bool = false
+        @State var sessionStats: SessionStats = .init()
+        @State var showingSettings: Bool = false
+        @State var isProcessing: Bool = false
+        @State private var progressObserverTokens: [NSObjectProtocol] = []
 
 	var body: some View {
 		ZStack(alignment: .topTrailing) {
@@ -201,10 +202,13 @@ struct ContentView: View {
 				}
 			}
 		}
-		.onChange(of: showDockIcon) { newValue in
-			UserDefaults.standard.set(newValue, forKey: "ui.showDockIcon")
-			AppUIManager.shared.setDockIconVisible(newValue)
-		}
+                .onChange(of: showDockIcon) { newValue in
+                        UserDefaults.standard.set(newValue, forKey: "ui.showDockIcon")
+                        AppUIManager.shared.setDockIconVisible(newValue)
+                }
+                .onDisappear {
+                        Task { @MainActor in teardownProgressUpdates() }
+                }
 		.onChange(of: showMenuBarIcon) { newValue in
 			UserDefaults.standard.set(newValue, forKey: "ui.showMenuBarIcon")
 			AppUIManager.shared.setMenuBarIconVisible(newValue)
