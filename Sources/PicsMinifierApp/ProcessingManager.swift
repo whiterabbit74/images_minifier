@@ -4,7 +4,7 @@ import AppKit
 
 final class ProcessingManager {
 	static let shared = ProcessingManager()
-	private let service = CompressionService() // Main service
+	private let smartCompressor = SmartCompressor() // Modern compression engine
 	private let legacyService = CompressionService() // Fallback
 	private let logger = CSVLogger(logURL: AppPaths.logCSVURL())
     private var isCancelled: Bool = false
@@ -22,12 +22,21 @@ final class ProcessingManager {
 				guard let url = it.next() else { break }
 				group.addTask { [weak self] in
 					guard let self = self else { return }
-					if Task.isCancelled { return }
+
+					// Check for cancellation before starting work
+					guard !Task.isCancelled else { return }
+
 					let result = self.compressFile(at: url, settings: settings)
+
+					// Check for cancellation after potentially long operation
+					guard !Task.isCancelled else { return }
+
 					self.logger?.append(result)
 					NotificationCenter.default.post(name: .processingResult, object: result)
+
 					if result.status == "ok" && result.originalSizeBytes > result.newSizeBytes {
 						DispatchQueue.main.async {
+							guard !Task.isCancelled else { return }
 							NSApp.dockTile.badgeLabel = "✓"
 							AppUIManager.shared.showDockBounce()
 						}
@@ -69,8 +78,12 @@ final class ProcessingManager {
     // MARK: - Private Methods
 
     private func compressFile(at url: URL, settings: AppSettings) -> ProcessResult {
-        // Using legacy compression service only (modern compressors disabled)
-        return service.compressFile(at: url, settings: settings)
+        // Use modern SmartCompressor when enabled, fall back to legacy service
+        if useModernCompressors {
+            return smartCompressor.compressFile(at: url, settings: settings)
+        } else {
+            return legacyService.compressFile(at: url, settings: settings)
+        }
     }
 
     // MARK: - Public Configuration
@@ -80,12 +93,16 @@ final class ProcessingManager {
         print("🔧 Modern compressors: \(enabled ? "enabled" : "disabled")")
     }
 
-    // Compression capabilities disabled - modern service not available
-    /*
-    func getCompressionCapabilities() -> CompressionCapabilities {
-        return modernService.getCompressionCapabilities()
+    // Get available modern compression tools
+    func getAvailableTools() -> [String: Bool] {
+        let fm = FileManager.default
+        return [
+            "MozJPEG": fm.isExecutableFile(atPath: "/opt/homebrew/bin/cjpeg") || fm.isExecutableFile(atPath: "/usr/local/bin/cjpeg"),
+            "Oxipng": fm.isExecutableFile(atPath: "/opt/homebrew/bin/oxipng") || fm.isExecutableFile(atPath: "/usr/local/bin/oxipng"),
+            "Gifsicle": fm.isExecutableFile(atPath: "/opt/homebrew/bin/gifsicle") || fm.isExecutableFile(atPath: "/usr/local/bin/gifsicle"),
+            "AVIF": fm.isExecutableFile(atPath: "/opt/homebrew/bin/avifenc") || fm.isExecutableFile(atPath: "/usr/local/bin/avifenc")
+        ]
     }
-    */
 }
 
 

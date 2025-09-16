@@ -26,9 +26,19 @@ public final class GifsicleOptimizer {
 		}
 		args += ["--output", finalOutputURL.path, inputURL.path]
 		process.arguments = args
-		let pipe = Pipe()
-		process.standardError = pipe
-		process.standardOutput = Pipe()
+		let errorPipe = Pipe()
+		let outputPipe = Pipe()
+		process.standardError = errorPipe
+		process.standardOutput = outputPipe
+
+		// Ensure pipes are properly closed
+		defer {
+			try? errorPipe.fileHandleForReading.close()
+			try? outputPipe.fileHandleForReading.close()
+			try? errorPipe.fileHandleForWriting.close()
+			try? outputPipe.fileHandleForWriting.close()
+		}
+
 		do {
 			try process.run()
 			process.waitUntilExit()

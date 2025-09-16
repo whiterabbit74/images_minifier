@@ -25,6 +25,14 @@ public final class WebPEncoder {
 		var outputSize: Int = 0
 		let stride = width * 4
 		let q: Float = Float(quality)
+
+		// Ensure memory cleanup in all exit paths
+		defer {
+			if let ptr = outputPtr {
+				webp_free_buffer(ptr)
+			}
+		}
+
 		let success: Int = rgba.withUnsafeBytes { rawBuf in
 			guard let base = rawBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return 0 }
 			var sizeT: size_t = 0
@@ -32,12 +40,13 @@ public final class WebPEncoder {
 			outputSize = Int(sizeT)
 			return Int(res)
 		}
+
 		guard success != 0, let outNonNil = outputPtr, outputSize > 0 else {
-			if let outNonNil = outputPtr { webp_free_buffer(outNonNil) }
 			return nil
 		}
+
+		// Copy data before cleanup
 		let data = Data(bytes: outNonNil, count: outputSize)
-		webp_free_buffer(outNonNil)
 		return data
 	}
 
@@ -46,17 +55,26 @@ public final class WebPEncoder {
 		var w: Int32 = 0
 		var h: Int32 = 0
 		var stride: Int32 = 0
+
+		// Ensure memory cleanup in all exit paths
+		defer {
+			if let ptr = outPtr {
+				webp_free_buffer(ptr)
+			}
+		}
+
 		let ok: Int = webpData.withUnsafeBytes { rawBuf in
 			guard let base = rawBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return 0 }
 			return Int(webp_decode_rgba(base, webpData.count, &outPtr, &w, &h, &stride))
 		}
+
 		guard ok != 0, let out = outPtr, w > 0, h > 0, stride > 0 else {
-			if let out = outPtr { webp_free_buffer(out) }
 			return nil
 		}
+
 		let byteCount = Int(stride) * Int(h)
+		// Copy data before cleanup
 		let data = Data(bytes: out, count: byteCount)
-		webp_free_buffer(out)
 		return (data, Int(w), Int(h), Int(stride))
 	}
 }

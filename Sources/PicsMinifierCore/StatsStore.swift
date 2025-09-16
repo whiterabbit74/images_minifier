@@ -40,7 +40,18 @@ public final class StatsStore {
 		queue.sync {
 			let current = Int64(defaults.integer(forKey: savedBytesKey))
 			let overflowSafe = current > (Int64.max - bytes) ? Int64.max : current + bytes
-			defaults.set(Int(overflowSafe), forKey: savedBytesKey)
+
+			// Additional overflow protection for Int() cast
+			let finalValue: Int
+			if overflowSafe > Int64(Int.max) {
+				finalValue = Int.max
+			} else if overflowSafe < Int64(Int.min) {
+				finalValue = Int.min
+			} else {
+				finalValue = Int(overflowSafe)
+			}
+
+			defaults.set(finalValue, forKey: savedBytesKey)
 		}
 	}
 

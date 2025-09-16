@@ -225,7 +225,14 @@ public final class CompressionService {
 		}
 		let bytesPerRow = ctx.bytesPerRow
 		let byteCount = bytesPerRow * dstH
-		let rgbaData = Data(bytes: dataPtr, count: byteCount)
+
+		// Immediately copy data to prevent pointer invalidation
+		let rgbaData: Data
+		do {
+			rgbaData = Data(bytes: dataPtr, count: byteCount)
+			// Explicitly invalidate context data to prevent dangling pointer usage
+			ctx.clear(CGRect(x: 0, y: 0, width: CGFloat(dstW), height: CGFloat(dstH)))
+		}
 		let encoder = WebPEncoder()
 		let q = webPQuality(for: preset)
 		guard let webpData = encoder.encodeRGBA(rgbaData, width: dstW, height: dstH, quality: q) else {

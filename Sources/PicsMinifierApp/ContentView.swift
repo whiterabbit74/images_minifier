@@ -184,28 +184,15 @@ struct ContentView: View {
 			}
 		}
 		.onChange(of: appearanceMode) { newMode in
-			print("🎨 onChange appearanceMode: \(newMode)")
 			UserDefaults.standard.set(newMode.rawValue, forKey: "ui.appearanceMode")
-			// Синхронизируем с NSApp.appearance
+			// Efficient theme switching without redundant operations
 			switch newMode {
 			case .light:
-				print("🎨 Setting light theme")
 				NSApp.appearance = NSAppearance(named: .aqua)
 			case .dark:
-				print("🎨 Setting dark theme")
 				NSApp.appearance = NSAppearance(named: .darkAqua)
 			case .auto:
-				print("🎨 Setting auto theme - clearing NSApp.appearance")
-				// Для автоматического режима полностью сбрасываем и обновляем
 				NSApp.appearance = nil
-				DispatchQueue.main.async {
-					print("🎨 Updating all windows for auto theme")
-					for window in NSApp.windows {
-						window.appearance = nil
-						window.invalidateShadow()
-						window.contentView?.needsDisplay = true
-					}
-				}
 			}
 		}
 		.onChange(of: showDockIcon) { newValue in
@@ -309,18 +296,12 @@ struct AppearanceModifier: ViewModifier {
     func body(content: Content) -> some View {
         switch mode {
         case .light:
-            content
-                .preferredColorScheme(.light)
-                .onAppear { print("🎨 AppearanceModifier: Applied light preferredColorScheme") }
+            content.preferredColorScheme(.light)
         case .dark:
-            content
-                .preferredColorScheme(.dark)
-                .onAppear { print("🎨 AppearanceModifier: Applied dark preferredColorScheme") }
+            content.preferredColorScheme(.dark)
         case .auto:
-            // Для автоматического режима НЕ применяем preferredColorScheme
-            // SwiftUI будет следовать системной теме
+            // Auto mode follows system theme
             content
-                .onAppear { print("🎨 AppearanceModifier: Auto mode - no preferredColorScheme") }
         }
     }
 }
