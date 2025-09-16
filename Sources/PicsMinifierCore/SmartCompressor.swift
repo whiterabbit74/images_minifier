@@ -196,16 +196,36 @@ public final class SmartCompressor {
 
                 if producedSize >= originalSize {
                     if destinationURL != inputURL {
+                        do {
+                            if fileManager.fileExists(atPath: destinationURL.path) {
+                                try fileManager.removeItem(at: destinationURL)
+                            }
+                            try fileManager.copyItem(at: inputURL, to: destinationURL)
+                        } catch {
+                            return ProcessResult(
+                                sourceFormat: "jpeg",
+                                targetFormat: "jpeg",
+                                originalPath: inputURL.path,
+                                outputPath: outputURL.path,
+                                originalSizeBytes: originalSize,
+                                newSizeBytes: originalSize,
+                                status: "error",
+                                reason: "copy-original-failed"
+                            )
+                        }
+                    } else {
                         try? fileManager.removeItem(at: destinationURL)
                     }
+
+                    let finalOutputURL = overwritingSource ? inputURL : outputURL
                     return ProcessResult(
                         sourceFormat: "jpeg",
                         targetFormat: "jpeg",
                         originalPath: inputURL.path,
-                        outputPath: inputURL.path,
+                        outputPath: finalOutputURL.path,
                         originalSizeBytes: originalSize,
                         newSizeBytes: originalSize,
-                        status: "skipped",
+                        status: "success",
                         reason: "no-gain"
                     )
                 }
@@ -305,16 +325,36 @@ public final class SmartCompressor {
 
                 if producedSize >= originalSize {
                     if destinationURL != inputURL {
+                        do {
+                            if fileManager.fileExists(atPath: destinationURL.path) {
+                                try fileManager.removeItem(at: destinationURL)
+                            }
+                            try fileManager.copyItem(at: inputURL, to: destinationURL)
+                        } catch {
+                            return ProcessResult(
+                                sourceFormat: "png",
+                                targetFormat: "png",
+                                originalPath: inputURL.path,
+                                outputPath: outputURL.path,
+                                originalSizeBytes: originalSize,
+                                newSizeBytes: originalSize,
+                                status: "error",
+                                reason: "copy-original-failed"
+                            )
+                        }
+                    } else {
                         try? fileManager.removeItem(at: destinationURL)
                     }
+
+                    let finalOutputURL = overwritingSource ? inputURL : outputURL
                     return ProcessResult(
                         sourceFormat: "png",
                         targetFormat: "png",
                         originalPath: inputURL.path,
-                        outputPath: inputURL.path,
+                        outputPath: finalOutputURL.path,
                         originalSizeBytes: originalSize,
                         newSizeBytes: originalSize,
-                        status: "skipped",
+                        status: "success",
                         reason: "no-gain"
                     )
                 }
@@ -415,17 +455,37 @@ public final class SmartCompressor {
                 let producedSize = (try? fm.attributesOfItem(atPath: tempOutputURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
 
                 if producedSize >= originalSize {
-                    if tempOutputURL != inputURL {
+                    if overwriteSameFile {
                         try? fm.removeItem(at: tempOutputURL)
+                    } else {
+                        do {
+                            if fm.fileExists(atPath: tempOutputURL.path) {
+                                try fm.removeItem(at: tempOutputURL)
+                            }
+                            try fm.copyItem(at: inputURL, to: outputURL)
+                        } catch {
+                            return ProcessResult(
+                                sourceFormat: "gif",
+                                targetFormat: "gif",
+                                originalPath: inputURL.path,
+                                outputPath: outputURL.path,
+                                originalSizeBytes: originalSize,
+                                newSizeBytes: originalSize,
+                                status: "error",
+                                reason: "copy-original-failed"
+                            )
+                        }
                     }
+
+                    let finalOutputURL = overwriteSameFile ? inputURL : outputURL
                     return ProcessResult(
                         sourceFormat: "gif",
                         targetFormat: "gif",
                         originalPath: inputURL.path,
-                        outputPath: inputURL.path,
+                        outputPath: finalOutputURL.path,
                         originalSizeBytes: originalSize,
                         newSizeBytes: originalSize,
-                        status: "skipped",
+                        status: "success",
                         reason: "no-gain"
                     )
                 }

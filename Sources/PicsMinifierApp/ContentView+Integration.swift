@@ -5,27 +5,71 @@ import SwiftUI
 import AppKit
 
 extension ContentView {
+	@MainActor
 	func handleDrop(providers: [NSItemProvider]) async {
+		guard !isProcessing else { return }
+		var droppedURLs: [URL] = []
 		for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-			_ = provider.loadObject(ofClass: URL.self) { url, _ in
-				guard let url else { return }
-				Task { await self.consume(url: url) }
+			if let url = await loadFileURL(from: provider) {
+				droppedURLs.append(url)
+			}
+		}
+
+		guard !droppedURLs.isEmpty else { return }
+		await consume(urls: droppedURLs)
+	}
+
+	private func loadFileURL(from provider: NSItemProvider) async -> URL? {
+		await withCheckedContinuation { continuation in
+			provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+				if let url = item as? URL {
+					continuation.resume(returning: url)
+				} else if let nsurl = item as? NSURL {
+					continuation.resume(returning: nsurl as URL)
+				} else if let data = item as? Data,
+						let string = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+						let url = URL(string: string), url.isFileURL {
+					continuation.resume(returning: url)
+				} else {
+					continuation.resume(returning: nil)
+				}
 			}
 		}
 	}
 
 	@MainActor
-	func consume(url: URL) async {
-                let walker = FileWalker()
-                let files = walker.enumerateSupportedFiles(at: url)
-                self.sessionStats.totalInBatch = files.count
-                self.sessionStats.totalFiles = files.count
-                self.sessionStats.processedFiles = 0
-                self.sessionStats.totalOriginalSize = 0
-                self.sessionStats.totalCompressedSize = 0
-                self.sessionStats.errorCount = 0
+	func consume(urls: [URL]) async {
+		guard !urls.isEmpty else { return }
 
-                var settings = AppSettings()
+		let walker = FileWalker()
+		var collected: [URL] = []
+		for url in urls {
+			collected.append(contentsOf: walker.enumerateSupportedFiles(at: url))
+		}
+
+		var seen = Set<String>()
+		var unique: [URL] = []
+		for file in collected {
+			let key = file.standardizedFileURL.path
+			if !seen.contains(key) {
+				seen.insert(key)
+				unique.append(file)
+			}
+		}
+
+		guard !unique.isEmpty else { return }
+
+		sessionStats.totalInBatch = unique.count
+		sessionStats.totalFiles = unique.count
+		sessionStats.processedFiles = 0
+		sessionStats.totalOriginalSize = 0
+		sessionStats.totalCompressedSize = 0
+		sessionStats.errorCount = 0
+		sessionStats.successfulFiles = 0
+		sessionStats.failedFiles = 0
+		sessionStats.skippedFiles = 0
+
+		var settings = AppSettings()
 		settings.preset = preset
 		settings.saveMode = saveMode
 		settings.preserveMetadata = preserveMetadata
@@ -34,11 +78,10 @@ extension ContentView {
 		let md = UserDefaults.standard.object(forKey: "settings.maxDimension") as? Double ?? 0
 		settings.maxDimension = md > 0 ? Int(md) : nil
 
-		self.isProcessing = true
+		isProcessing = true
 
-		// Use SecureIntegrationLayer for processing
 		SecureIntegrationLayer.shared.compressFiles(
-			urls: files,
+			urls: unique,
 			settings: settings,
 			progressCallback: { processed, total in
 				Task { @MainActor in
@@ -48,11 +91,34 @@ extension ContentView {
 			},
 			completion: { results in
 				Task { @MainActor in
-					// Update session stats with results
-					for result in results where result.status == "success" {
-						self.sessionStats.totalOriginalSize += result.originalSizeBytes
-						self.sessionStats.totalCompressedSize += result.newSizeBytes
+					var successCount = 0
+					var skippedCount = 0
+					var failureCount = 0
+					var totalOriginal: Int64 = 0
+					var totalCompressed: Int64 = 0
+
+					for result in results {
+						let status = result.status.lowercased()
+						switch status {
+						case "success", "ok":
+							successCount += 1
+							totalOriginal += result.originalSizeBytes
+							totalCompressed += result.newSizeBytes
+						case "skipped":
+							skippedCount += 1
+						default:
+							failureCount += 1
+						}
 					}
+
+					self.sessionStats.successfulFiles = successCount
+					self.sessionStats.skippedFiles = skippedCount
+					self.sessionStats.failedFiles = failureCount
+					self.sessionStats.processedFiles = successCount + skippedCount + failureCount
+					self.sessionStats.totalOriginalSize = totalOriginal
+					self.sessionStats.totalCompressedSize = totalCompressed
+					self.sessionStats.errorCount = failureCount
+
 					self.isProcessing = false
 					AppUIManager.shared.showDockBounce()
 				}
@@ -60,8 +126,8 @@ extension ContentView {
 		)
 	}
 
-        @MainActor
-        func bindProgressUpdates() {
+	@MainActor
+	func bindProgressUpdates() {
                 guard progressObserverTokens.isEmpty else { return }
 
                 let center = NotificationCenter.default
@@ -125,48 +191,7 @@ extension ContentView {
 		panel.allowedContentTypes = []
 		panel.begin { resp in
 			if resp == .OK {
-				Task { @MainActor in
-                                        let walker = FileWalker()
-                                        let files = panel.urls.flatMap { walker.enumerateSupportedFiles(at: $0) }
-                                        self.sessionStats.totalInBatch = files.count
-                                        self.sessionStats.totalFiles = files.count
-                                        self.sessionStats.processedFiles = 0
-                                        self.sessionStats.totalOriginalSize = 0
-                                        self.sessionStats.totalCompressedSize = 0
-                                        self.sessionStats.errorCount = 0
-
-                                        var settings = AppSettings()
-					settings.preset = preset
-					settings.saveMode = saveMode
-					settings.preserveMetadata = preserveMetadata
-					settings.convertToSRGB = convertToSRGB
-					settings.enableGifsicle = enableGifsicle
-
-					self.isProcessing = true
-
-					// Use SecureIntegrationLayer for processing
-					SecureIntegrationLayer.shared.compressFiles(
-						urls: files,
-						settings: settings,
-						progressCallback: { processed, total in
-							Task { @MainActor in
-								self.sessionStats.processedFiles = processed
-								self.sessionStats.totalInBatch = total
-							}
-						},
-						completion: { results in
-							Task { @MainActor in
-								// Update session stats with results
-								for result in results where result.status == "success" {
-									self.sessionStats.totalOriginalSize += result.originalSizeBytes
-									self.sessionStats.totalCompressedSize += result.newSizeBytes
-								}
-								self.isProcessing = false
-								AppUIManager.shared.showDockBounce()
-							}
-						}
-					)
-				}
+				Task { await self.consume(urls: panel.urls) }
 			}
 		}
 	}
@@ -178,10 +203,8 @@ extension ContentView {
 		panel.allowsMultipleSelection = false
 		panel.begin { resp in
 			if resp == .OK, let url = panel.url {
-				Task { await self.consume(url: url) }
+				Task { await self.consume(urls: [url]) }
 			}
 		}
 	}
 }
-
-

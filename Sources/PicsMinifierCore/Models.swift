@@ -59,6 +59,9 @@ public struct SessionStats: Codable, Equatable {
 	public var totalCompressedSize: Int64 = 0
 	public var errorCount: Int = 0
 	public var totalInBatch: Int = 0
+	public var successfulFiles: Int = 0
+	public var failedFiles: Int = 0
+	public var skippedFiles: Int = 0
 
 	public init() {}
 
@@ -75,5 +78,3 @@ public struct SessionStats: Codable, Equatable {
 		return totalOriginalSize - totalCompressedSize
 	}
 }
-
-

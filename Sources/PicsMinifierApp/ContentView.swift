@@ -49,6 +49,7 @@ struct ContentView: View {
 
 				// Background overlay - no click to close
 				Color.black.opacity(0.08)
+					.allowsHitTesting(false)
 					.ignoresSafeArea()
 					.transition(.opacity)
 					.zIndex(0)
@@ -87,30 +88,8 @@ struct ContentView: View {
 					}
 					.animation(.easeInOut(duration: 0.15), value: isTargeted)
 
-					HStack {
-						Text(String(format: NSLocalizedString("Файлов обработано: %lld", comment: ""), sessionStats.processedCount))
-						Spacer()
-						Text(String(format: NSLocalizedString("Экономия за сессию: %@", comment: ""), ByteCountFormatter.string(fromByteCount: sessionStats.savedBytes, countStyle: .file)))
-					}
-
-					if sessionStats.totalInBatch > 0 {
-						VStack(alignment: .leading, spacing: 4) {
-							ProgressView(value: Double(sessionStats.processedCount), total: Double(sessionStats.totalInBatch)) {
-								Text(NSLocalizedString("Прогресс партии", comment: ""))
-							}
-							Text(String(format: NSLocalizedString("Всего в партии: %lld. Осталось: %lld", comment: ""), sessionStats.totalInBatch, max(0, sessionStats.totalInBatch - sessionStats.processedCount)))
-								.font(.caption)
-						}
-					}
-
-					if isProcessing {
-						HStack(spacing: 8) {
-							ProgressView().scaleEffect(0.9)
-							Text(NSLocalizedString("Идёт обработка…", comment: ""))
-								.font(.subheadline)
-								.foregroundColor(.secondary)
-						}
-					}
+					ProgressSummaryView(stats: sessionStats, isProcessing: isProcessing)
+						.padding(.vertical, 4)
 
 					Divider()
 					HStack(spacing: 8) {
@@ -298,6 +277,198 @@ struct ContentView: View {
 }
 
 
+private struct ProgressSummaryView: View {
+    let stats: SessionStats
+    let isProcessing: Bool
+
+    private var hasActiveBatch: Bool { stats.totalInBatch > 0 }
+    private var clampedProgress: Double {
+        guard hasActiveBatch else { return 0 }
+        let value = Double(stats.processedFiles) / Double(max(stats.totalInBatch, 1))
+        return min(max(value, 0), 1)
+    }
+
+    private var percentText: String {
+        let percent = Int(round(clampedProgress * 100))
+        return "\(percent)%"
+    }
+
+    private var remainingCount: Int {
+        max(stats.totalInBatch - stats.processedFiles, 0)
+    }
+
+    private var headerIconName: String {
+        if hasErrors && !isProcessing {
+            return "exclamationmark.triangle.fill"
+        } else if isComplete {
+            return "checkmark.circle.fill"
+        } else if isProcessing {
+            return "arrow.triangle.2.circlepath.circle.fill"
+        } else if hasActiveBatch {
+            return "pause.circle.fill"
+        } else {
+            return "tray.and.arrow.down"
+        }
+    }
+
+    private var headerColor: Color {
+        if hasErrors && !isProcessing {
+            return .orange
+        } else if isComplete {
+            return .green
+        } else if isProcessing {
+            return .accentColor
+        } else if hasActiveBatch {
+            return .orange
+        } else {
+            return .secondary
+        }
+    }
+
+    private var headerTitle: String {
+        if hasErrors && !isProcessing {
+            return NSLocalizedString("Сжатие завершено с ошибками", comment: "")
+        } else if isComplete {
+            return NSLocalizedString("Сжатие завершено", comment: "")
+        } else if isProcessing {
+            return NSLocalizedString("Идёт сжатие", comment: "")
+        } else if hasActiveBatch {
+            return NSLocalizedString("Пауза", comment: "")
+        } else {
+            return NSLocalizedString("Файлы ещё не выбраны", comment: "")
+        }
+    }
+
+    private var isComplete: Bool {
+        hasActiveBatch && stats.processedFiles >= stats.totalInBatch && !isProcessing
+    }
+
+    private var hasErrors: Bool {
+        stats.failedFiles > 0
+    }
+
+    private var savedBytesText: String {
+        ByteCountFormatter.string(fromByteCount: stats.savedBytes, countStyle: .file)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: headerIconName)
+                    .symbolRenderingMode(.hierarchical)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundColor(headerColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(headerTitle)
+                        .font(.headline)
+
+                    Text(statusSubtitle())
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if hasActiveBatch {
+                    Text(percentText)
+                        .monospacedDigit()
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(isComplete ? .green : .primary)
+                }
+            }
+
+            ProgressBar(progress: clampedProgress, isComplete: isComplete)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 16) {
+                    InfoChip(title: NSLocalizedString("В партии", comment: ""), value: "\(stats.totalInBatch)")
+                    InfoChip(title: NSLocalizedString("Обработано", comment: ""), value: "\(stats.processedFiles)")
+                    InfoChip(title: NSLocalizedString("Осталось", comment: ""), value: hasActiveBatch ? "\(remainingCount)" : "—")
+                    InfoChip(title: NSLocalizedString("Экономия", comment: ""), value: savedBytesText)
+                }
+
+                HStack(spacing: 16) {
+                    InfoChip(title: NSLocalizedString("Успешно", comment: ""), value: "\(stats.successfulFiles)")
+                    InfoChip(title: NSLocalizedString("Пропущено", comment: ""), value: "\(stats.skippedFiles)")
+                    InfoChip(title: NSLocalizedString("Ошибки", comment: ""), value: "\(stats.failedFiles)")
+                }
+            }
+            .font(.caption)
+
+            if isComplete {
+                Text(NSLocalizedString("Все файлы успешно обработаны", comment: ""))
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            } else if isProcessing {
+                Text(NSLocalizedString("Не закрывайте приложение до завершения процесса", comment: ""))
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            } else if !hasActiveBatch {
+                Text(NSLocalizedString("Перетащите файлы или выберите их кнопками ниже, чтобы начать", comment: ""))
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.secondary.opacity(0.08))
+        )
+        .animation(.easeInOut(duration: 0.2), value: stats.processedFiles)
+        .animation(.easeInOut(duration: 0.2), value: isProcessing)
+    }
+
+    private func statusSubtitle() -> String {
+        if hasActiveBatch {
+            return String(format: NSLocalizedString("Обработано: %lld из %lld • Ошибок: %lld", comment: ""), stats.processedFiles, stats.totalInBatch, stats.failedFiles)
+        } else {
+            return NSLocalizedString("Готово к запуску", comment: "")
+        }
+    }
+}
+
+private struct ProgressBar: View {
+    var progress: Double
+    var isComplete: Bool
+
+    private let height: CGFloat = 14
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: height / 2)
+                    .fill(Color.secondary.opacity(0.2))
+
+                RoundedRectangle(cornerRadius: height / 2)
+                    .fill(isComplete ? Color.green : Color.accentColor)
+                    .frame(width: max(height, proxy.size.width * CGFloat(min(max(progress, 0), 1))))
+                    .animation(.easeInOut(duration: 0.25), value: progress)
+            }
+        }
+        .frame(height: height)
+    }
+}
+
+private struct InfoChip: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 13, weight: .medium))
+                .monospacedDigit()
+                .foregroundColor(.primary)
+        }
+    }
+}
+
+
 import UniformTypeIdentifiers
 
 struct AppearanceModifier: ViewModifier {
@@ -315,4 +486,3 @@ struct AppearanceModifier: ViewModifier {
         }
     }
 }
-

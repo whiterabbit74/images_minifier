@@ -216,9 +216,18 @@ public final class CompressionService {
 
                 if newSize >= originalSize {
                         if destinationURL != inputURL {
-                                try? fm.removeItem(at: destinationURL)
+                                do {
+                                        if fm.fileExists(atPath: destinationURL.path) {
+                                                try fm.removeItem(at: destinationURL)
+                                        }
+                                        try fm.copyItem(at: inputURL, to: destinationURL)
+                                } catch {
+                                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: outputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "error", reason: "copy-original-failed")
+                                }
                         }
-                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "no-gain")
+
+                        let finalOutputURL = overwritingSource ? inputURL : destinationURL
+                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: finalOutputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "success", reason: "no-gain")
                 }
 
                 if overwritingSource {
@@ -298,9 +307,18 @@ public final class CompressionService {
 
                 if newSize >= originalSize {
                         if destinationURL != inputURL {
-                                try? fm.removeItem(at: destinationURL)
+                                do {
+                                        if fm.fileExists(atPath: destinationURL.path) {
+                                                try fm.removeItem(at: destinationURL)
+                                        }
+                                        try fm.copyItem(at: inputURL, to: destinationURL)
+                                } catch {
+                                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: outputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "error", reason: "copy-original-failed")
+                                }
                         }
-                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "no-gain")
+
+                        let finalOutputURL = overwritingSource ? inputURL : destinationURL
+                        return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: finalOutputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "success", reason: "no-gain")
                 }
 
                 if overwritingSource {
@@ -381,5 +399,3 @@ public final class CompressionService {
         }
 }
 #endif
-
-
