@@ -79,83 +79,35 @@ EOF
 echo "🎨 Copying resources..."
 
 # Create Assets.xcassets structure and copy icons
-mkdir -p PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset
+mkdir -p PicsMinifier.app/Contents/Resources/Assets.xcassets
 
-# Extract icons from .icns file if it exists, otherwise use existing PNGs
-if [ -f "AppIcons/AppIcon.icns" ]; then
-    echo "📱 Extracting icons from .icns file..."
-    # Extract various sizes from .icns
-    iconutil -c iconset AppIcons/AppIcon.icns
-    cp AppIcon.iconset/icon_16x16.png PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/16.png 2>/dev/null || echo "⚠️ 16px icon not found"
-    cp AppIcon.iconset/icon_32x32.png PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/32.png 2>/dev/null || echo "⚠️ 32px icon not found"
-    cp AppIcon.iconset/icon_64x64.png PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/64.png 2>/dev/null || echo "⚠️ 64px icon not found"
-    cp AppIcon.iconset/icon_128x128.png PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/128.png 2>/dev/null || echo "⚠️ 128px icon not found"
-    cp AppIcon.iconset/icon_256x256.png PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/256.png 2>/dev/null || echo "⚠️ 256px icon not found"
-    cp AppIcon.iconset/icon_512x512.png PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/512.png 2>/dev/null || echo "⚠️ 512px icon not found"
-    cp AppIcon.iconset/icon_512x512@2x.png PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/1024.png 2>/dev/null || echo "⚠️ 1024px icon not found"
-    rm -rf AppIcon.iconset
+appicon_target="PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset"
+
+if [ -d "AppIcons/AppIcon.appiconset" ]; then
+    echo "📱 Bundling AppIcon assets from AppIcons/AppIcon.appiconset"
+    rm -rf "$appicon_target"
+    cp -R AppIcons/AppIcon.appiconset "$appicon_target"
+elif [ -f "icons.icns" ]; then
+    echo "📱 icons.icns found, extracting fallback iconset"
+    tmp_iconset="$(mktemp -d)"
+    iconutil -c iconset icons.icns -o "$tmp_iconset"
+    mkdir -p "$appicon_target"
+    cp "$tmp_iconset"/*.png "$appicon_target" 2>/dev/null || echo "⚠️ Failed to copy icons from icons.icns"
+    rm -rf "$tmp_iconset"
 else
-    # Copy existing PNG icons
-    echo "📱 Copying existing PNG icons..."
-    find . -name "*.png" -path "*/AppIcons/*" -exec cp {} PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/ \; 2>/dev/null || echo "⚠️ Some PNG icons not found"
+    echo "⚠️ AppIcons/AppIcon.appiconset not found; using whatever PNGs exist under AppIcons/"
+    mkdir -p "$appicon_target"
+    find AppIcons -maxdepth 1 -name '*.png' -exec cp {} "$appicon_target" \;
 fi
 
-# Create Contents.json for AppIcon
-cat > PicsMinifier.app/Contents/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json << 'EOF'
-{
-  "images" : [
-    {
-      "filename" : "16.png",
-      "idiom" : "mac",
-      "scale" : "1x",
-      "size" : "16x16"
-    },
-    {
-      "filename" : "32.png",
-      "idiom" : "mac",
-      "scale" : "1x",
-      "size" : "32x32"
-    },
-    {
-      "filename" : "64.png",
-      "idiom" : "mac",
-      "scale" : "1x",
-      "size" : "64x64"
-    },
-    {
-      "filename" : "128.png",
-      "idiom" : "mac",
-      "scale" : "1x",
-      "size" : "128x128"
-    },
-    {
-      "filename" : "256.png",
-      "idiom" : "mac",
-      "scale" : "1x",
-      "size" : "256x256"
-    },
-    {
-      "filename" : "512.png",
-      "idiom" : "mac",
-      "scale" : "1x",
-      "size" : "512x512"
-    },
-    {
-      "filename" : "1024.png",
-      "idiom" : "mac",
-      "scale" : "1x",
-      "size" : "1024x1024"
-    }
-  ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
-  }
-}
-EOF
-
 # Copy menu bar icon
-cp compression_icon_simple.pdf PicsMinifier.app/Contents/Resources/ 2>/dev/null || echo "⚠️ Menu bar PDF icon not found"
+if [ -f "AppIcons/menu_bar_icon.pdf" ]; then
+    cp AppIcons/menu_bar_icon.pdf PicsMinifier.app/Contents/Resources/compression_icon.pdf
+elif [ -f "compression_icon.pdf" ]; then
+    cp compression_icon.pdf PicsMinifier.app/Contents/Resources/
+else
+    echo "⚠️ Menu bar PDF icon not found"
+fi
 
 # Copy bundled tools
 echo "🔧 Copying bundled tools..."
