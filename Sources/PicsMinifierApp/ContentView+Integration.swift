@@ -37,7 +37,7 @@ extension ContentView {
 			settings: settings,
 			progressCallback: { processed, total in
 				Task { @MainActor in
-					self.sessionStats.processedCount = processed
+					self.sessionStats.processedFiles = processed
 					self.sessionStats.totalInBatch = total
 				}
 			},
@@ -45,8 +45,8 @@ extension ContentView {
 				Task { @MainActor in
 					// Update session stats with results
 					for result in results where result.status == "success" {
-						let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
-						self.sessionStats.savedBytes += saved
+						self.sessionStats.totalOriginalSize += result.originalSizeBytes
+						self.sessionStats.totalCompressedSize += result.newSizeBytes
 					}
 					self.isProcessing = false
 					AppUIManager.shared.showDockBounce()
@@ -123,7 +123,7 @@ extension ContentView {
 						settings: settings,
 						progressCallback: { processed, total in
 							Task { @MainActor in
-								self.sessionStats.processedCount = processed
+								self.sessionStats.processedFiles = processed
 								self.sessionStats.totalInBatch = total
 							}
 						},
@@ -131,8 +131,8 @@ extension ContentView {
 							Task { @MainActor in
 								// Update session stats with results
 								for result in results where result.status == "success" {
-									let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
-									self.sessionStats.savedBytes += saved
+									self.sessionStats.totalOriginalSize += result.originalSizeBytes
+									self.sessionStats.totalCompressedSize += result.newSizeBytes
 								}
 								self.isProcessing = false
 								AppUIManager.shared.showDockBounce()

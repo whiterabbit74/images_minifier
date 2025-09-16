@@ -24,7 +24,6 @@ let package = Package(
 			name: "PicsMinifierCore",
 			dependencies: ["WebPShims"],
 			path: "Sources/PicsMinifierCore",
-			exclude: ["WebPStub.swift"],
 			resources: [
 				.process("Resources")
 			]
@@ -32,7 +31,10 @@ let package = Package(
 		.executableTarget(
 			name: "PicsMinifierApp",
 			dependencies: ["PicsMinifierCore"],
-			path: "Sources/PicsMinifierApp"
+			path: "Sources/PicsMinifierApp",
+			exclude: [
+				"SettingsView.swift"
+			]
 		),
 		.testTarget(
 			name: "PicsMinifierAppTests",

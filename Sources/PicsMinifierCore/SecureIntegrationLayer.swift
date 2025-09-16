@@ -6,7 +6,7 @@ public final class SecureIntegrationLayer {
 
     private let statsStore: SafeStatsStore
     private let logger: SafeCSVLogger
-    private let compressionService: CompressionService
+    private let smartCompressor: SmartCompressor
     private let maxConcurrentOperations = 4
     private let operationQueue: OperationQueue
 
@@ -21,7 +21,7 @@ public final class SecureIntegrationLayer {
         let logURL = logDir.appendingPathComponent("compression_log.csv")
         self.logger = SafeCSVLogger(logURL: logURL)
 
-        self.compressionService = CompressionService()
+        self.smartCompressor = SmartCompressor()
 
         // Configure operation queue for concurrent processing
         self.operationQueue = OperationQueue()
@@ -133,7 +133,7 @@ public final class SecureIntegrationLayer {
             }
 
             // Process with CompressionService
-            let result = compressionService.compressFile(at: safeURL, settings: settings)
+            let result = smartCompressor.compressFile(at: safeURL, settings: settings)
             return result
 
         } catch {
@@ -155,7 +155,7 @@ public final class SecureIntegrationLayer {
         var safeSettings = settings
         safeSettings.preset = .balanced // Use balanced instead of quality for large files
 
-        let result = compressionService.compressFile(at: url, settings: safeSettings)
+        let result = smartCompressor.compressFile(at: url, settings: safeSettings)
         return result
     }
 

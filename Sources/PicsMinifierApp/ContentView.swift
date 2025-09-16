@@ -22,7 +22,16 @@ struct ContentView: View {
 	var body: some View {
 		ZStack(alignment: .topTrailing) {
 			if showingSettings {
-				SettingsView()
+				SimpleSettingsView(
+					preset: $preset,
+					saveMode: $saveMode,
+					preserveMetadata: $preserveMetadata,
+					convertToSRGB: $convertToSRGB,
+					enableGifsicle: $enableGifsicle,
+					appearanceMode: $appearanceMode,
+					showDockIcon: $showDockIcon,
+					showMenuBarIcon: $showMenuBarIcon
+				)
 					.transition(.move(edge: .trailing).combined(with: .opacity))
 					.zIndex(1)
 					.padding(.top, 24)

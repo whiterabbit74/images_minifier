@@ -34,6 +34,41 @@ public final class SecurityUtils {
         return normalizedPath
     }
 
+    /// Sanitizes filename to prevent path traversal and other security issues
+    public static func sanitizeFilename(_ filename: String) -> String {
+        var sanitized = filename
+
+        // Remove path separators
+        sanitized = sanitized.replacingOccurrences(of: "/", with: "_")
+        sanitized = sanitized.replacingOccurrences(of: "\\", with: "_")
+
+        // Remove directory traversal sequences
+        sanitized = sanitized.replacingOccurrences(of: "..", with: "")
+
+        // Remove control characters
+        sanitized = sanitized.filter { char in
+            if let ascii = char.asciiValue {
+                return ascii >= 32 && ascii < 127 // Printable ASCII range
+            }
+            return !char.isASCII // Keep non-ASCII characters
+        }
+
+        // Remove other dangerous characters
+        let dangerousChars = CharacterSet(charactersIn: "<>:\"|?*")
+        sanitized = sanitized.components(separatedBy: dangerousChars).joined(separator: "_")
+
+        // Ensure not empty and not too long
+        if sanitized.isEmpty {
+            sanitized = "unnamed"
+        }
+
+        if sanitized.count > 255 {
+            sanitized = String(sanitized.prefix(255))
+        }
+
+        return sanitized
+    }
+
     /// Validates and sanitizes command line arguments
     public static func sanitizeProcessArguments(_ arguments: [String]) throws -> [String] {
         var sanitized: [String] = []
@@ -196,6 +231,76 @@ public final class SecurityUtils {
         try FileManager.default.copyItem(
             at: URL(fileURLWithPath: sourcePath),
             to: URL(fileURLWithPath: destPath)
+        )
+    }
+
+    // MARK: - Synchronous Process Execution
+
+    /// Synchronous version of executeSecureProcess for non-async contexts
+    public static func executeSecureProcessSync(
+        executable: URL,
+        arguments: [String],
+        timeout: TimeInterval = 30.0,
+        maxOutputSize: Int = 1024 * 1024
+    ) throws -> SecureProcessResult {
+        // Validate executable
+        guard FileManager.default.isExecutableFile(atPath: executable.path) else {
+            throw SecurityError.invalidExecutable
+        }
+
+        // Sanitize arguments
+        let safeArguments = try sanitizeProcessArguments(arguments)
+
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = safeArguments
+
+        // Create pipes for output capture
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        // Set minimal environment
+        process.environment = [
+            "PATH": "/usr/bin:/bin",
+            "HOME": NSTemporaryDirectory()
+        ]
+
+        var didTimeout = false
+        let semaphore = DispatchSemaphore(value: 0)
+
+        // Start process
+        try process.run()
+
+        // Set up timeout
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+            if process.isRunning {
+                didTimeout = true
+                process.terminate()
+                semaphore.signal()
+            }
+        }
+
+        // Wait for completion
+        process.waitUntilExit()
+        semaphore.signal()
+
+        if didTimeout {
+            throw SecurityError.processTimeout
+        }
+
+        // Read output with size limits
+        let stdoutData = stdoutPipe.fileHandleForReading.readData(ofLength: maxOutputSize)
+        let stderrData = stderrPipe.fileHandleForReading.readData(ofLength: maxOutputSize)
+
+        let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
+        let stderr = String(data: stderrData, encoding: .utf8) ?? ""
+
+        return SecureProcessResult(
+            terminationStatus: process.terminationStatus,
+            stdout: stdout,
+            stderr: stderr
         )
     }
 
