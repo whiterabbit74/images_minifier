@@ -475,14 +475,19 @@ struct AppearanceModifier: ViewModifier {
     let mode: AppearanceMode
 
     func body(content: Content) -> some View {
-        switch mode {
+        content.preferredColorScheme(mode.preferredColorScheme)
+    }
+}
+
+private extension AppearanceMode {
+    var preferredColorScheme: ColorScheme? {
+        switch self {
         case .light:
-            content.preferredColorScheme(.light)
+            return .light
         case .dark:
-            content.preferredColorScheme(.dark)
+            return .dark
         case .auto:
-            // Auto mode follows system theme
-            content
+            return nil
         }
     }
 }
