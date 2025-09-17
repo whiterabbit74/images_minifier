@@ -87,10 +87,40 @@ PLIST
 ASSET_TARGET="$APP_BUNDLE/Contents/Resources/Assets.xcassets/AppIcon.appiconset"
 mkdir -p "$(dirname "$ASSET_TARGET")"
 
+icns_output="$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+
+make_icns_from_iconset() {
+    local source_dir="$1"
+    local destination_file="$2"
+
+    if ! command -v iconutil >/dev/null 2>&1; then
+        return 1
+    fi
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local iconset_path="${temp_root}/AppIcon.iconset"
+    mkdir -p "$iconset_path"
+    cp "$source_dir"/* "$iconset_path"/ 2>/dev/null || true
+
+    if iconutil -c icns "$iconset_path" -o "$destination_file" 2>/dev/null; then
+        rm -rf "$temp_root"
+        return 0
+    fi
+
+    rm -rf "$temp_root"
+    return 1
+}
+
 if [ -d "$APP_ICONS_DIR/AppIcon.appiconset" ]; then
     echo "📱 Bundling AppIcon assets from Resources/AppIcons/AppIcon.appiconset"
     rm -rf "$ASSET_TARGET"
     cp -R "$APP_ICONS_DIR/AppIcon.appiconset" "$ASSET_TARGET"
+    if make_icns_from_iconset "$APP_ICONS_DIR/AppIcon.appiconset" "$icns_output"; then
+        echo "🛠️  Generated AppIcon.icns from asset catalog"
+    else
+        echo "⚠️ Failed to export AppIcon.icns from asset catalog"
+    fi
 elif [ -f "$APP_ICONS_DIR/icons.icns" ]; then
     echo "📱 icons.icns found, extracting fallback iconset"
     tmp_iconset="$(mktemp -d)"
@@ -98,10 +128,23 @@ elif [ -f "$APP_ICONS_DIR/icons.icns" ]; then
     mkdir -p "$ASSET_TARGET"
     cp "$tmp_iconset"/*.png "$ASSET_TARGET" 2>/dev/null || echo "⚠️ Failed to copy icons from icons.icns"
     rm -rf "$tmp_iconset"
+    cp "$APP_ICONS_DIR/icons.icns" "$icns_output"
 else
     echo "⚠️ No AppIcon.appiconset available; copying loose PNGs from Resources/AppIcons"
     mkdir -p "$ASSET_TARGET"
     find "$APP_ICONS_DIR" -maxdepth 1 -name '*.png' -exec cp {} "$ASSET_TARGET" \;
+    if [ -n "$(find "$ASSET_TARGET" -maxdepth 1 -name 'icon_512x512*' -print -quit)" ]; then
+        if make_icns_from_iconset "$ASSET_TARGET" "$icns_output"; then
+            echo "🛠️  Generated AppIcon.icns from loose PNGs"
+        else
+            echo "⚠️ Failed to export AppIcon.icns"
+        fi
+    fi
+fi
+
+if [ ! -f "$icns_output" ] && [ -d "$ASSET_TARGET" ]; then
+    echo "⚠️ AppIcon.icns not generated; attempting final fallback"
+    make_icns_from_iconset "$ASSET_TARGET" "$icns_output" || echo "⚠️ Unable to produce AppIcon.icns; application icon may not appear"
 fi
 
 if [ -f "$APP_ICONS_DIR/menu_bar_icon.pdf" ]; then
