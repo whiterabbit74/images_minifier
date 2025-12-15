@@ -104,14 +104,12 @@ final class ProcessingManager {
 
     // Get available modern compression tools
     func getAvailableTools() -> [String: Bool] {
-        let fm = FileManager.default
+        let availability = ConfigurationManager.shared.checkToolAvailability()
         return [
-            "MozJPEG": fm.isExecutableFile(atPath: "/opt/homebrew/bin/cjpeg") ||
-                fm.isExecutableFile(atPath: "/usr/local/bin/cjpeg") ||
-                fm.isExecutableFile(atPath: "/usr/local/opt/mozjpeg/bin/cjpeg"),
-            "Oxipng": fm.isExecutableFile(atPath: "/opt/homebrew/bin/oxipng") || fm.isExecutableFile(atPath: "/usr/local/bin/oxipng"),
-            "Gifsicle": fm.isExecutableFile(atPath: "/opt/homebrew/bin/gifsicle") || fm.isExecutableFile(atPath: "/usr/local/bin/gifsicle"),
-            "AVIF": fm.isExecutableFile(atPath: "/opt/homebrew/bin/avifenc") || fm.isExecutableFile(atPath: "/usr/local/bin/avifenc")
+            "MozJPEG": availability.cjpeg,
+            "Oxipng": availability.oxipng,
+            "Gifsicle": availability.gifsicle,
+            "AVIF": availability.avifenc
         ]
     }
 }

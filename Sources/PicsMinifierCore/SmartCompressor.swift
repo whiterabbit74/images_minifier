@@ -9,55 +9,11 @@ fileprivate let legacyService = CompressionService()
 public final class SmartCompressor {
     public init() {}
 
-    private struct CompressionTools {
-        // Configuration-based tool discovery with fallbacks
-        static func findTool(name: String) -> String? {
-            // Check environment variable first
-            let envCandidates = [
-                "\(name.uppercased())_PATH",
-                "PICS_\(name.uppercased())_PATH"
-            ]
-
-            for key in envCandidates {
-                if let envPath = ProcessInfo.processInfo.environment[key],
-                   FileManager.default.isExecutableFile(atPath: envPath) {
-                    return envPath
-                }
-            }
-
-            // Common installation paths
-            let candidates = [
-                "/opt/homebrew/bin/\(name)",           // ARM64 Homebrew
-                "/usr/local/bin/\(name)",              // Intel Homebrew
-                "/opt/local/bin/\(name)",              // MacPorts
-                "/usr/bin/\(name)",                    // System
-                "/opt/homebrew/opt/mozjpeg/bin/\(name)",
-                "/usr/local/opt/mozjpeg/bin/\(name)"
-            ]
-
-            return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
-                ?? Self.findInPATH(name: name)
-        }
-
-        private static func findInPATH(name: String) -> String? {
-            guard let pathEnv = ProcessInfo.processInfo.environment["PATH"] else { return nil }
-            let fm = FileManager.default
-
-            for directory in pathEnv.split(separator: ":") {
-                let potential = String(directory).appending("/\(name)")
-                if fm.isExecutableFile(atPath: potential) {
-                    return potential
-                }
-            }
-            return nil
-        }
-
-        static var mozjpegPath: String? { findTool(name: "cjpeg") }
-        static var oxipngPath: String? { findTool(name: "oxipng") }
-        static var gifsicle: String? { findTool(name: "gifsicle") }
-        static var avifenc: String? { findTool(name: "avifenc") }
-        static var avifdec: String? { findTool(name: "avifdec") }
-    }
+    // Use centralized configuration for tool discovery
+    private var mozjpegPath: String? { ConfigurationManager.shared.locateTool("cjpeg")?.path }
+    private var oxipngPath: String? { ConfigurationManager.shared.locateTool("oxipng")?.path }
+    private var gifsiclePath: String? { ConfigurationManager.shared.locateTool("gifsicle")?.path }
+    private var avifencPath: String? { ConfigurationManager.shared.locateTool("avifenc")?.path }
 
     public func compressFile(at inputURL: URL, settings: AppSettings) -> ProcessResult {
         // Security: Validate input path first
@@ -134,10 +90,146 @@ public final class SmartCompressor {
             return compressPNGWithOxipng(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
         } else if sourceFormat == "gif" {
             return compressGIFWithGifsicle(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
+        } else if utType.conforms(to: UTType(importedAs: "public.avif")) || sourceFormat == "avif" {
+            return compressAVIFWithAvifenc(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
         } else {
             // Fallback to ImageIO for unsupported formats
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
+    }
+
+    private func compressAVIFWithAvifenc(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
+         do {
+            let _ = try SecurityUtils.validateFilePath(inputURL.path)
+            let _ = try SecurityUtils.validateFilePath(outputURL.path)
+        } catch {
+            return ProcessResult(
+                sourceFormat: "avif",
+                targetFormat: "avif",
+                originalPath: inputURL.path,
+                outputPath: inputURL.path,
+                originalSizeBytes: originalSize,
+                newSizeBytes: originalSize,
+                status: "error",
+                reason: "security-validation-failed"
+            )
+        }
+
+        guard let toolPath = avifencPath else {
+            return legacyService.compressFile(at: inputURL, settings: settings)
+        }
+
+        let quality = avifQuality(for: settings.preset)
+        let speed = avifSpeed(for: settings.preset)
+        let fileManager = FileManager.default
+        let overwritingSource = inputURL.path == outputURL.path
+
+        let destinationURL: URL
+        if overwritingSource {
+            let tempName = SecurityUtils.createSecureTempFileName(extension: inputURL.pathExtension.isEmpty ? "avif" : inputURL.pathExtension)
+            destinationURL = fileManager.temporaryDirectory.appendingPathComponent(tempName)
+        } else {
+            destinationURL = outputURL
+            try? fileManager.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        }
+
+        let arguments = [
+            "--jobs", "all",
+            "--min", "0", "--max", "63",
+            "-a", "end-usage=q",
+            "-a", "cq-level=\(quality)",
+            "-a", "tune=ssim",
+            "-s", "\(speed)",
+            inputURL.path,
+            destinationURL.path
+        ]
+
+        do {
+            let result = try SecurityUtils.executeSecureProcessSync(
+                executable: URL(fileURLWithPath: toolPath),
+                arguments: arguments,
+                timeout: 120.0, // AVIF is slow
+                maxOutputSize: 1024 * 1024
+            )
+
+            if result.terminationStatus == 0 {
+                let producedSize = (try? fileManager.attributesOfItem(atPath: destinationURL.path)[.size] as? NSNumber)?.int64Value ?? originalSize
+
+                if producedSize >= originalSize {
+                     if destinationURL != inputURL {
+                        do {
+                            if fileManager.fileExists(atPath: destinationURL.path) {
+                                try fileManager.removeItem(at: destinationURL)
+                            }
+                            try fileManager.copyItem(at: inputURL, to: destinationURL)
+                        } catch {
+                            return ProcessResult(
+                                sourceFormat: "avif",
+                                targetFormat: "avif",
+                                originalPath: inputURL.path,
+                                outputPath: outputURL.path,
+                                originalSizeBytes: originalSize,
+                                newSizeBytes: originalSize,
+                                status: "error",
+                                reason: "copy-original-failed"
+                            )
+                        }
+                    } else {
+                        try? fileManager.removeItem(at: destinationURL)
+                    }
+                    
+                    let finalOutputURL = overwritingSource ? inputURL : outputURL
+                    return ProcessResult(
+                        sourceFormat: "avif",
+                        targetFormat: "avif",
+                        originalPath: inputURL.path,
+                        outputPath: finalOutputURL.path,
+                        originalSizeBytes: originalSize,
+                        newSizeBytes: originalSize,
+                        status: "success",
+                        reason: "no-gain"
+                    )
+                }
+                
+                let finalOutputURL: URL
+                if overwritingSource {
+                    do {
+                         if fileManager.fileExists(atPath: inputURL.path) {
+                            try fileManager.removeItem(at: inputURL)
+                        }
+                        try fileManager.moveItem(at: destinationURL, to: inputURL)
+                        finalOutputURL = inputURL
+                    } catch {
+                         try? fileManager.removeItem(at: destinationURL)
+                         return legacyService.compressFile(at: inputURL, settings: settings)
+                    }
+                } else {
+                    finalOutputURL = outputURL
+                }
+
+                return ProcessResult(
+                    sourceFormat: "avif",
+                    targetFormat: "avif",
+                    originalPath: inputURL.path,
+                    outputPath: finalOutputURL.path,
+                    originalSizeBytes: originalSize,
+                    newSizeBytes: producedSize,
+                    status: "success",
+                    reason: "avifenc-compression"
+                )
+            }
+        } catch {
+             if overwritingSource {
+                try? fileManager.removeItem(at: destinationURL)
+            }
+            return legacyService.compressFile(at: inputURL, settings: settings)
+        }
+        
+         if overwritingSource {
+            try? fileManager.removeItem(at: destinationURL)
+        }
+
+        return legacyService.compressFile(at: inputURL, settings: settings)
     }
 
     private func compressJPEGWithMozJPEG(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
@@ -157,7 +249,7 @@ public final class SmartCompressor {
             )
         }
 
-        guard let toolPath = CompressionTools.mozjpegPath else {
+        guard let toolPath = mozjpegPath else {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
@@ -288,7 +380,7 @@ public final class SmartCompressor {
             )
         }
 
-        guard let toolPath = CompressionTools.oxipngPath else {
+        guard let toolPath = oxipngPath else {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
@@ -419,7 +511,7 @@ public final class SmartCompressor {
         }
 
         // Check tool availability
-        guard let toolPath = CompressionTools.gifsicle else {
+        guard let toolPath = gifsiclePath else {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
@@ -580,6 +672,24 @@ public final class SmartCompressor {
         case .balanced: return 3
         case .saving: return 6
         case .auto: return 3
+        }
+    }
+
+    private func avifQuality(for preset: CompressionPreset) -> Int {
+        switch preset {
+        case .quality: return 18
+        case .balanced: return 28
+        case .saving: return 38
+        case .auto: return 28
+        }
+    }
+
+    private func avifSpeed(for preset: CompressionPreset) -> Int {
+        switch preset {
+        case .quality: return 3
+        case .balanced: return 4
+        case .saving: return 5
+        case .auto: return 4
         }
     }
 }

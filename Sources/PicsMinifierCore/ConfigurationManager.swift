@@ -26,25 +26,25 @@ public final class ConfigurationManager {
 
     private let toolPaths: [Platform: [String: [String]]] = [
         .macOSAppleSilicon: [
-            "jpegoptim": ["/opt/homebrew/bin/jpegoptim", "/usr/local/bin/jpegoptim", "/usr/bin/jpegoptim"],
+            "cjpeg": ["/opt/homebrew/opt/mozjpeg/bin/cjpeg", "/opt/homebrew/bin/cjpeg", "/usr/local/bin/cjpeg"],
             "oxipng": ["/opt/homebrew/bin/oxipng", "/usr/local/bin/oxipng", "/usr/bin/oxipng"],
             "cwebp": ["/opt/homebrew/bin/cwebp", "/usr/local/bin/cwebp", "/usr/bin/cwebp"],
             "gifsicle": ["/opt/homebrew/bin/gifsicle", "/usr/local/bin/gifsicle", "/usr/bin/gifsicle"],
-            "magick": ["/opt/homebrew/bin/magick", "/usr/local/bin/magick", "/usr/bin/magick"]
+            "avifenc": ["/opt/homebrew/bin/avifenc", "/usr/local/bin/avifenc", "/usr/bin/avifenc"]
         ],
         .macOSIntel: [
-            "jpegoptim": ["/usr/local/bin/jpegoptim", "/opt/homebrew/bin/jpegoptim", "/usr/bin/jpegoptim"],
+            "cjpeg": ["/usr/local/opt/mozjpeg/bin/cjpeg", "/usr/local/bin/cjpeg", "/opt/homebrew/bin/cjpeg"],
             "oxipng": ["/usr/local/bin/oxipng", "/opt/homebrew/bin/oxipng", "/usr/bin/oxipng"],
             "cwebp": ["/usr/local/bin/cwebp", "/opt/homebrew/bin/cwebp", "/usr/bin/cwebp"],
             "gifsicle": ["/usr/local/bin/gifsicle", "/opt/homebrew/bin/gifsicle", "/usr/bin/gifsicle"],
-            "magick": ["/usr/local/bin/magick", "/opt/homebrew/bin/magick", "/usr/bin/magick"]
+            "avifenc": ["/usr/local/bin/avifenc", "/opt/homebrew/bin/avifenc", "/usr/bin/avifenc"]
         ],
         .unknown: [
-            "jpegoptim": ["/usr/bin/jpegoptim", "/usr/local/bin/jpegoptim"],
+            "cjpeg": ["/usr/bin/cjpeg", "/usr/local/bin/cjpeg"],
             "oxipng": ["/usr/bin/oxipng", "/usr/local/bin/oxipng"],
             "cwebp": ["/usr/bin/cwebp", "/usr/local/bin/cwebp"],
             "gifsicle": ["/usr/bin/gifsicle", "/usr/local/bin/gifsicle"],
-            "magick": ["/usr/bin/magick", "/usr/local/bin/magick"]
+            "avifenc": ["/usr/bin/avifenc", "/usr/local/bin/avifenc"]
         ]
     ]
 
@@ -160,34 +160,37 @@ public final class ConfigurationManager {
 
     // MARK: - Tool Availability Check
 
+    // MARK: - Tool Availability Check
+    
     public struct ToolAvailability {
-        public let jpegoptim: Bool
+        public let cjpeg: Bool
         public let oxipng: Bool
         public let cwebp: Bool
         public let gifsicle: Bool
-        public let magick: Bool
-
+        public let avifenc: Bool
+        
         public var hasModernTools: Bool {
-            return jpegoptim && oxipng && cwebp && gifsicle
+            return cjpeg && oxipng && cwebp && gifsicle && avifenc
         }
-
+        
         public var missingTools: [String] {
             var missing: [String] = []
-            if !jpegoptim { missing.append("jpegoptim") }
+            if !cjpeg { missing.append("cjpeg") }
             if !oxipng { missing.append("oxipng") }
             if !cwebp { missing.append("cwebp") }
             if !gifsicle { missing.append("gifsicle") }
+            if !avifenc { missing.append("avifenc") }
             return missing
         }
     }
 
     public func checkToolAvailability() -> ToolAvailability {
         return ToolAvailability(
-            jpegoptim: locateTool("jpegoptim") != nil,
+            cjpeg: locateTool("cjpeg") != nil,
             oxipng: locateTool("oxipng") != nil,
             cwebp: locateTool("cwebp") != nil,
             gifsicle: locateTool("gifsicle") != nil,
-            magick: locateTool("magick") != nil
+            avifenc: locateTool("avifenc") != nil
         )
     }
 
@@ -206,8 +209,8 @@ public final class ConfigurationManager {
                 instructions.append("Install missing tools using Homebrew:")
                 instructions.append("")
 
-                if !availability.jpegoptim {
-                    instructions.append("brew install jpegoptim")
+                if !availability.cjpeg {
+                    instructions.append("brew install mozjpeg")
                 }
                 if !availability.oxipng {
                     instructions.append("brew install oxipng")
@@ -218,13 +221,17 @@ public final class ConfigurationManager {
                 if !availability.gifsicle {
                     instructions.append("brew install gifsicle")
                 }
+                if !availability.avifenc {
+                    instructions.append("brew install libavif")
+                }
 
             case .unknown:
                 instructions.append("Install using your system package manager:")
-                instructions.append("- jpegoptim: JPEG optimization tool")
+                instructions.append("- mozjpeg: JPEG optimization tool (provides cjpeg)")
                 instructions.append("- oxipng: PNG optimization tool")
                 instructions.append("- webp: WebP tools (includes cwebp)")
                 instructions.append("- gifsicle: GIF optimization tool")
+                instructions.append("- libavif: AVIF tools (includes avifenc)")
             }
 
             instructions.append("")

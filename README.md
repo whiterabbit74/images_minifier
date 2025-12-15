@@ -30,9 +30,11 @@
 - **Fast Build**: 2.6 second compilation time for rapid development
 
 ### 🎨 **User Experience**
-- **Drag & Drop**: Intuitive file and folder processing
+- **Liquid Glass Design**: Modern, premium aesthetic with smooth animations and blur effects
+- **Drag & Drop**: Intuitive file and folder processing with responsive hover states
 - **Multiple Save Modes**: Suffix, separate folder, or overwrite options
-- **Real-time Progress**: Live statistics and compression feedback
+- **Real-time Progress**: Live statistics, rotating spinner, and filename feedback
+- **Confetti Celebration**: Visual reward upon successful batch completion
 - **Theme Support**: Light, dark, and auto themes
 - **Menu Bar Integration**: Optional background operation
 

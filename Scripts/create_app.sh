@@ -157,7 +157,7 @@ fi
 
 echo "🔧 Copying bundled tools..."
 find "$CORE_RESOURCES" -type f \
-    \( -name "cwebp" -o -name "dwebp" -o -name "gif2webp" -o -name "img2webp" -o -name "vwebp" -o -name "webpinfo" -o -name "webpmux" -o -name "gifsicle" \) \
+    \( -name "cwebp" -o -name "dwebp" -o -name "gif2webp" -o -name "img2webp" -o -name "vwebp" -o -name "webpinfo" -o -name "webpmux" -o -name "gifsicle" -o -name "cjpeg" -o -name "oxipng" -o -name "avifenc" \) \
     -exec cp {} "$APP_BUNDLE/Contents/Resources/" \; 2>/dev/null || echo "⚠️ Some bundled tools not found"
 
 find "$CORE_RESOURCES" -name "README*.md" -exec cp {} "$APP_BUNDLE/Contents/Resources/" \; 2>/dev/null || echo "⚠️ Some README files not found"

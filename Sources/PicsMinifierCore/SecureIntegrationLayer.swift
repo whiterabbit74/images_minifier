@@ -40,7 +40,7 @@ public final class SecureIntegrationLayer {
     public func compressFiles(
         urls: [URL],
         settings: AppSettings,
-        progressCallback: @escaping (Int, Int) -> Void = { _, _ in },
+        progressCallback: @escaping (Int, Int, String) -> Void = { _, _, _ in },
         completion: @escaping ([ProcessResult]) -> Void
     ) -> Task<Void, Never> {
         let task = Task { [weak self] in
@@ -66,7 +66,7 @@ public final class SecureIntegrationLayer {
     private func processFiles(
         urls: [URL],
         settings: AppSettings,
-        progressCallback: @escaping (Int, Int) -> Void
+        progressCallback: @escaping (Int, Int, String) -> Void
     ) async -> [ProcessResult] {
         var results: [ProcessResult] = []
         let totalFiles = urls.count
@@ -74,7 +74,7 @@ public final class SecureIntegrationLayer {
 
         if urls.isEmpty {
             await MainActor.run {
-                progressCallback(0, 0)
+                progressCallback(0, 0, "")
             }
             return []
         }
@@ -84,15 +84,21 @@ public final class SecureIntegrationLayer {
 
         for i in stride(from: 0, to: urls.count, by: batchSize) {
             let batch = Array(urls[i..<min(i + batchSize, urls.count)])
-            let batchResults = await processBatch(batch: batch, settings: settings)
+            let batchResults = await processBatch(
+                batch: batch, 
+                settings: settings, 
+                baseCount: processedCount, 
+                total: totalFiles, 
+                progressCallback: progressCallback
+            )
 
             results.append(contentsOf: batchResults)
             processedCount += batchResults.count
 
-            // Update progress with local copy to avoid concurrency warning
+            // Update progress with local copy
             let currentProcessed = processedCount
             await MainActor.run {
-                progressCallback(currentProcessed, totalFiles)
+                progressCallback(currentProcessed, totalFiles, "")
             }
         }
 
@@ -108,13 +114,21 @@ public final class SecureIntegrationLayer {
         return results
     }
 
-    private func processBatch(batch: [URL], settings: AppSettings) async -> [ProcessResult] {
+    private func processBatch(
+        batch: [URL], 
+        settings: AppSettings, 
+        baseCount: Int, 
+        total: Int, 
+        progressCallback: @escaping (Int, Int, String) -> Void
+    ) async -> [ProcessResult] {
         return await withTaskGroup(of: ProcessResult?.self, returning: [ProcessResult].self) { group in
             var results: [ProcessResult] = []
 
             for url in batch {
+                let filename = url.lastPathComponent
                 group.addTask {
-                    await self.processFile(url: url, settings: settings)
+                    await MainActor.run { progressCallback(baseCount, total, filename) }
+                    return await self.processFile(url: url, settings: settings)
                 }
             }
 

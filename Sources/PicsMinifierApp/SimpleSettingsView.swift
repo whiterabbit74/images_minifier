@@ -13,146 +13,118 @@ struct SimpleSettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
+                // Header
+                HStack {
+                    Text("Настройки")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
+
                 SettingsSection(
-                    title: "Качество и скорость",
-                    subtitle: "Выберите баланс между размером файлов и визуальным качеством",
+                    title: "Качество",
                     icon: "slider.horizontal.3"
                 ) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 16) {
                         Picker("Preset", selection: $preset) {
                             Text("Качество").tag(CompressionPreset.quality)
-                            Text("Сбалансированно").tag(CompressionPreset.balanced)
-                            Text("Экономия").tag(CompressionPreset.saving)
-                            Text("Автоматически").tag(CompressionPreset.auto)
+                            Text("Баланс").tag(CompressionPreset.balanced)
+                            Text("Сжатие").tag(CompressionPreset.saving)
+                            Text("Авто").tag(CompressionPreset.auto)
                         }
                         .pickerStyle(.segmented)
 
-                        SettingHint(text: "Умный режим автоматически подстраивает компрессию под содержимое изображений.")
-
-                        Picker("Режим сохранения", selection: $saveMode) {
-                            Label("Суффикс", systemImage: "rectangle.and.pencil.and.ellipsis").tag(SaveMode.suffix)
-                            Label("Отдельная папка", systemImage: "folder.badge.plus").tag(SaveMode.separateFolder)
-                            Label("Перезаписать", systemImage: "arrow.triangle.2.circlepath").tag(SaveMode.overwrite)
-                        }
-                        .pickerStyle(.segmented)
-
-                        SettingHint(text: "Суффикс добавляет _compressed к имени файла, отдельная папка создаёт каталог compressed рядом с исходниками.")
+                        SettingHint(text: "Умный режим подстраивает уровень сжатия под каждое изображение.")
                     }
                 }
 
                 SettingsSection(
-                    title: "Дополнительные параметры",
-                    subtitle: "Оптимизируйте обработку и цветовые профили",
-                    icon: "wand.and.stars"
+                    title: "Сохранение",
+                    icon: "folder"
                 ) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Toggle(isOn: $preserveMetadata) {
-                            SettingsToggleLabel(
-                                title: "Сохранять метаданные",
-                                caption: "EXIF, GPS и другая служебная информация останется в итоговом файле.",
-                                systemImage: "doc.text.image"
-                            )
+                    VStack(alignment: .leading, spacing: 16) {
+                        Picker("Режим", selection: $saveMode) {
+                            Text("Суффикс").tag(SaveMode.suffix)
+                            Text("Папка").tag(SaveMode.separateFolder)
+                            Text("Замена").tag(SaveMode.overwrite)
                         }
-                        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                        .pickerStyle(.segmented)
+                        
+                        SettingHint(text: saveModeDescription)
+                    }
+                }
 
-                        Toggle(isOn: $convertToSRGB) {
-                            SettingsToggleLabel(
-                                title: "Конвертировать в sRGB",
-                                caption: "Гарантирует одинаковый цвет в браузерах и приложениях без поддержки широких профилей.",
-                                systemImage: "paintpalette"
-                            )
-                        }
-                        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
-
-                        Toggle(isOn: $enableGifsicle) {
-                            SettingsToggleLabel(
-                                title: "Включить GIF оптимизацию",
-                                caption: "Использует gifsicle для более гладкой анимации и меньшего веса.",
-                                systemImage: "sparkles"
-                            )
-                        }
-                        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                SettingsSection(
+                    title: "Опции",
+                    icon: "gearshape.2"
+                ) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        GlassToggle(isOn: $preserveMetadata, title: "Сохранять метаданные", subtitle: "EXIF, GPS, Copyright", icon: "doc.text")
+                        GlassToggle(isOn: $convertToSRGB, title: "sRGB Конвертация", subtitle: "Для веб-совместимости", icon: "paintpalette")
+                        GlassToggle(isOn: $enableGifsicle, title: "GIF Оптимизация", subtitle: "Использовать Gifsicle", icon: "film")
                     }
                 }
 
                 SettingsSection(
                     title: "Интерфейс",
-                    subtitle: "Настройте внешний вид и элементы управления",
-                    icon: "paintbrush.pointed"
+                    icon: "macwindow"
                 ) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Picker("Режим темы", selection: $appearanceMode) {
-                            Label("Авто", systemImage: "circle.lefthalf.filled").tag(AppearanceMode.auto)
-                            Label("Светлая", systemImage: "sun.max.fill").tag(AppearanceMode.light)
-                            Label("Тёмная", systemImage: "moon.fill").tag(AppearanceMode.dark)
+                     VStack(alignment: .leading, spacing: 12) {
+                        GlassToggle(isOn: $showDockIcon, title: "Иконка в Dock", subtitle: nil, icon: "dock.rectangle")
+                        GlassToggle(isOn: $showMenuBarIcon, title: "Иконка в меню", subtitle: nil, icon: "menubar.rectangle")
+                        
+                        Divider().padding(.vertical, 4)
+                        
+                        Button(action: resetToDefaults) {
+                            HStack {
+                                Spacer()
+                                Text("Сбросить настройки")
+                                Spacer()
+                            }
                         }
-                        .pickerStyle(.segmented)
-
-                        SettingHint(text: "Нажмите ⌘⇧A, чтобы быстро переключать режимы темы во время работы.")
-
-                        Toggle(isOn: $showDockIcon) {
-                            SettingsToggleLabel(
-                                title: "Иконка в Dock",
-                                caption: "Полезно, если хотите держать приложение в фоне и возвращаться к нему позже.",
-                                systemImage: "macwindow"
-                            )
-                        }
-                        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
-
-                        Toggle(isOn: $showMenuBarIcon) {
-                            SettingsToggleLabel(
-                                title: "Иконка в строке меню",
-                                caption: "Быстрый доступ к перетаскиванию и истории запусков.",
-                                systemImage: "menubar.rectangle"
-                            )
-                        }
-                        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
-                    }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                     }
                 }
-
-                SettingsSection(
-                    title: "Движки сжатия",
-                    subtitle: "Задействованные инструменты и ожидаемая экономия",
-                    icon: "chart.bar.doc.horizontal"
-                ) {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        CompressionEngineRow(format: "JPEG", engine: "MozJPEG", improvement: "+35-40%", color: .green)
-                        CompressionEngineRow(format: "PNG", engine: "Oxipng", improvement: "+15-20%", color: .blue)
-                        CompressionEngineRow(format: "GIF", engine: "Gifsicle", improvement: "+30-50%", color: .orange)
-                        CompressionEngineRow(format: "AVIF", engine: "libavif", improvement: "+20-30%", color: .purple)
-                        CompressionEngineRow(format: "WebP", engine: "ImageIO", improvement: "Системный", color: .gray)
-                        CompressionEngineRow(format: "HEIC", engine: "ImageIO", improvement: "Системный", color: .gray)
-                    }
+                
+                // Info Section
+                VStack(spacing: 8) {
+                    Text("PicsMinifier 2025")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-
-                VStack(spacing: 12) {
-                    Button(action: resetToDefaults) {
-                        Label("Сбросить настройки", systemImage: "arrow.counterclockwise")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-
-                    SettingHint(text: "Настройки сохраняются автоматически и синхронизируются с выбранным режимом.")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 10)
             }
-            .padding(.vertical, 24)
-            .padding(.horizontal, 20)
+            .padding(24)
         }
-        .frame(width: 440)
+        .frame(width: 400)
+    }
+
+    private var saveModeDescription: String {
+        switch saveMode {
+        case .suffix: return "Добавляет _compressed к имени файла."
+        case .separateFolder: return "Создает папку 'compressed' рядом с файлом."
+        case .overwrite: return "Внимание: Исходные файлы будут заменены."
+        }
     }
 
     private func resetToDefaults() {
-        preset = .balanced
-        saveMode = .suffix
-        preserveMetadata = true
-        convertToSRGB = false
-        enableGifsicle = true
-        appearanceMode = .auto
-        showDockIcon = true
-        showMenuBarIcon = true
-
+        withAnimation {
+            preset = .balanced
+            saveMode = .suffix
+            preserveMetadata = true
+            convertToSRGB = false
+            enableGifsicle = true
+            appearanceMode = .auto
+            showDockIcon = true
+            showMenuBarIcon = true
+        }
+        saveSettings()
+    }
+    
+    private func saveSettings() {
         let defaults = UserDefaults.standard
         defaults.set(preset.rawValue, forKey: "settings.preset")
         defaults.set(saveMode.rawValue, forKey: "settings.saveMode")
@@ -165,140 +137,89 @@ struct SimpleSettingsView: View {
     }
 }
 
-struct CompressionEngineRow: View {
-    let format: String
-    let engine: String
-    let improvement: String
-    let color: Color
+// MARK: - Components
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(format)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                Text(engine)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            Text(improvement)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(color == .gray ? .secondary : color)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.secondary.opacity(0.08))
-        )
-    }
-}
-
-private struct SettingsSection<Content: View>: View {
+struct GlassToggle: View {
+    @Binding var isOn: Bool
     let title: String
     let subtitle: String?
     let icon: String
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.body)
+                        .fontWeight(.medium)
+                    
+                    if let subtitle = subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+    }
+}
+
+struct SettingsSection<Content: View>: View {
+    let title: String
+    let icon: String
     let content: Content
 
-    @Environment(\.colorScheme) private var colorScheme
-
-    init(title: String, subtitle: String? = nil, icon: String, @ViewBuilder content: () -> Content) {
+    init(title: String, icon: String, @ViewBuilder content: () -> Content) {
         self.title = title
-        self.subtitle = subtitle
         self.icon = icon
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-
-                    if let subtitle = subtitle {
-                        Text(subtitle)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            } icon: {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.12))
-                        .frame(width: 34, height: 34)
-                    Image(systemName: icon)
-                        .foregroundColor(.accentColor)
-                }
-            }
-
-            content
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(backgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.1 : 0.05))
-        )
-    }
-
-    private var backgroundColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.04) : Color.secondary.opacity(0.08)
-    }
-}
-
-private struct SettingsToggleLabel: View {
-    let title: String
-    let caption: String
-    let systemImage: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.12))
-                    .frame(width: 28, height: 28)
-                Image(systemName: systemImage)
-                    .foregroundColor(.accentColor)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                Text(caption)
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .foregroundStyle(Color.accentColor)
+                    .symbolRenderingMode(.hierarchical)
+                Text(title.uppercased())
                     .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.secondary)
             }
+            .padding(.leading, 4)
+
+            VStack(alignment: .leading, spacing: 0) {
+                content
+            }
+            .padding(16)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(.white.opacity(0.1), lineWidth: 1)
+            )
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-private struct SettingHint: View {
+struct SettingHint: View {
     let text: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "info.circle")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.top, 1)
+            Image(systemName: "info.circle.fill")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             Text(text)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
+        .padding(.horizontal, 4)
     }
 }

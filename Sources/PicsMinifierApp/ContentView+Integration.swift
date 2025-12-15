@@ -83,10 +83,13 @@ extension ContentView {
 		SecureIntegrationLayer.shared.compressFiles(
 			urls: unique,
 			settings: settings,
-			progressCallback: { processed, total in
+			progressCallback: { processed, total, filename in
 				Task { @MainActor in
 					self.sessionStats.processedFiles = processed
 					self.sessionStats.totalInBatch = total
+                    if !filename.isEmpty {
+                        self.currentFileName = NSLocalizedString("Обработка: ", comment: "") + filename
+                    }
 				}
 			},
 			completion: { results in
