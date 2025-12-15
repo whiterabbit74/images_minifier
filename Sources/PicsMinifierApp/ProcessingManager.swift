@@ -2,7 +2,7 @@ import Foundation
 import PicsMinifierCore
 import AppKit
 
-final class ProcessingManager {
+final class ProcessingManager: @unchecked Sendable {
 	static let shared = ProcessingManager()
 	private let smartCompressor = SmartCompressor() // Modern compression engine
 	private let legacyService = CompressionService() // Fallback
@@ -25,7 +25,8 @@ final class ProcessingManager {
 
                                         guard !Task.isCancelled else { return }
 
-                                        let result = self.compressFile(at: url, settings: settings)
+                                        if Task.isCancelled { return }
+                                        let result = await self.compressFile(at: url, settings: settings)
 
                                         guard !self.isCancelled, !Task.isCancelled else { return }
 
@@ -49,7 +50,8 @@ final class ProcessingManager {
                                 group.addTask { [weak self] in
                                         guard let self = self, !self.isCancelled else { return }
                                         if Task.isCancelled { return }
-                                        let result = self.compressFile(at: url, settings: settings)
+                                        if Task.isCancelled { return }
+                                        let result = await self.compressFile(at: url, settings: settings)
                                         guard !self.isCancelled, !Task.isCancelled else { return }
                                         self.logger?.append(result)
                                         NotificationCenter.default.post(name: .processingResult, object: result)
@@ -78,10 +80,10 @@ final class ProcessingManager {
 
     // MARK: - Private Methods
 
-    private func compressFile(at url: URL, settings: AppSettings) -> ProcessResult {
+    private func compressFile(at url: URL, settings: AppSettings) async -> ProcessResult {
         // Use modern SmartCompressor when enabled, fall back to legacy service
         if useModernCompressors {
-            return smartCompressor.compressFile(at: url, settings: settings)
+            return await smartCompressor.compressFile(at: url, settings: settings)
         } else {
             return legacyService.compressFile(at: url, settings: settings)
         }

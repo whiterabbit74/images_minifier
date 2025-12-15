@@ -77,6 +77,11 @@ extension ContentView {
 		settings.enableGifsicle = enableGifsicle
 		let md = UserDefaults.standard.object(forKey: "settings.maxDimension") as? Double ?? 0
 		settings.maxDimension = md > 0 ? Int(md) : nil
+        
+        settings.customJpegQuality = customJpegQuality
+        settings.customPngLevel = customPngLevel
+        settings.customAvifQuality = customAvifQuality
+        settings.customAvifSpeed = customAvifSpeed
 
 		isProcessing = true
 

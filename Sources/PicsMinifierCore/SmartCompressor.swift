@@ -15,7 +15,7 @@ public final class SmartCompressor {
     private var gifsiclePath: String? { ConfigurationManager.shared.locateTool("gifsicle")?.path }
     private var avifencPath: String? { ConfigurationManager.shared.locateTool("avifenc")?.path }
 
-    public func compressFile(at inputURL: URL, settings: AppSettings) -> ProcessResult {
+    public func compressFile(at inputURL: URL, settings: AppSettings) async -> ProcessResult {
         // Security: Validate input path first
         do {
             let _ = try SecurityUtils.validateFilePath(inputURL.path)
@@ -85,20 +85,20 @@ public final class SmartCompressor {
 
         // Выбираем лучший движок сжатия по типу файла
         if utType.conforms(to: .jpeg) {
-            return compressJPEGWithMozJPEG(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
+            return await compressJPEGWithMozJPEG(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
         } else if utType.conforms(to: .png) {
-            return compressPNGWithOxipng(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
+            return await compressPNGWithOxipng(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
         } else if sourceFormat == "gif" {
-            return compressGIFWithGifsicle(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
+            return await compressGIFWithGifsicle(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
         } else if utType.conforms(to: UTType(importedAs: "public.avif")) || sourceFormat == "avif" {
-            return compressAVIFWithAvifenc(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
+            return await compressAVIFWithAvifenc(inputURL: inputURL, outputURL: outputURL, settings: settings, originalSize: originalSize)
         } else {
             // Fallback to ImageIO for unsupported formats
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
     }
 
-    private func compressAVIFWithAvifenc(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
+    private func compressAVIFWithAvifenc(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) async -> ProcessResult {
          do {
             let _ = try SecurityUtils.validateFilePath(inputURL.path)
             let _ = try SecurityUtils.validateFilePath(outputURL.path)
@@ -119,8 +119,8 @@ public final class SmartCompressor {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
-        let quality = avifQuality(for: settings.preset)
-        let speed = avifSpeed(for: settings.preset)
+        let quality = avifQuality(for: settings)
+        let speed = avifSpeed(for: settings)
         let fileManager = FileManager.default
         let overwritingSource = inputURL.path == outputURL.path
 
@@ -145,7 +145,7 @@ public final class SmartCompressor {
         ]
 
         do {
-            let result = try SecurityUtils.executeSecureProcessSync(
+            let result = try await SecurityUtils.executeSecureProcess(
                 executable: URL(fileURLWithPath: toolPath),
                 arguments: arguments,
                 timeout: 120.0, // AVIF is slow
@@ -232,7 +232,7 @@ public final class SmartCompressor {
         return legacyService.compressFile(at: inputURL, settings: settings)
     }
 
-    private func compressJPEGWithMozJPEG(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
+    private func compressJPEGWithMozJPEG(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) async -> ProcessResult {
         do {
             let _ = try SecurityUtils.validateFilePath(inputURL.path)
             let _ = try SecurityUtils.validateFilePath(outputURL.path)
@@ -253,7 +253,7 @@ public final class SmartCompressor {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
-        let quality = qualityFor(settings.preset)
+        let quality = qualityFor(settings)
         let qualityValue = Int(quality * 100)
         let fileManager = FileManager.default
         let overwritingSource = inputURL.path == outputURL.path
@@ -276,7 +276,7 @@ public final class SmartCompressor {
         ]
 
         do {
-            let result = try SecurityUtils.executeSecureProcessSync(
+            let result = try await SecurityUtils.executeSecureProcess(
                 executable: URL(fileURLWithPath: toolPath),
                 arguments: arguments,
                 timeout: 30.0,
@@ -363,7 +363,7 @@ public final class SmartCompressor {
         return legacyService.compressFile(at: inputURL, settings: settings)
     }
 
-    private func compressPNGWithOxipng(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
+    private func compressPNGWithOxipng(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) async -> ProcessResult {
         do {
             let _ = try SecurityUtils.validateFilePath(inputURL.path)
             let _ = try SecurityUtils.validateFilePath(outputURL.path)
@@ -384,7 +384,7 @@ public final class SmartCompressor {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
-        let level = levelFor(settings.preset)
+        let level = levelFor(settings)
         let fileManager = FileManager.default
         let overwritingSource = inputURL.path == outputURL.path
 
@@ -405,7 +405,7 @@ public final class SmartCompressor {
         ]
 
         do {
-            let result = try SecurityUtils.executeSecureProcessSync(
+            let result = try await SecurityUtils.executeSecureProcess(
                 executable: URL(fileURLWithPath: toolPath),
                 arguments: arguments,
                 timeout: 60.0,
@@ -492,7 +492,7 @@ public final class SmartCompressor {
         return legacyService.compressFile(at: inputURL, settings: settings)
     }
 
-    private func compressGIFWithGifsicle(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) -> ProcessResult {
+    private func compressGIFWithGifsicle(inputURL: URL, outputURL: URL, settings: AppSettings, originalSize: Int64) async -> ProcessResult {
         // Security: Validate paths before processing
         do {
             let _ = try SecurityUtils.validateFilePath(inputURL.path)
@@ -515,7 +515,7 @@ public final class SmartCompressor {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
-        let level = levelFor(settings.preset)
+        let level = levelFor(settings)
         let overwriteSameFile = inputURL.path == outputURL.path
         let fm = FileManager.default
 
@@ -536,7 +536,7 @@ public final class SmartCompressor {
         ]
 
         do {
-            let result = try SecurityUtils.executeSecureProcessSync(
+            let result = try await SecurityUtils.executeSecureProcess(
                 executable: URL(fileURLWithPath: toolPath),
                 arguments: arguments,
                 timeout: 45.0, // GIF can take longer
@@ -657,8 +657,9 @@ public final class SmartCompressor {
         }
     }
 
-    private func qualityFor(_ preset: CompressionPreset) -> Float {
-        switch preset {
+    private func qualityFor(_ settings: AppSettings) -> Float {
+        switch settings.preset {
+        case .custom: return Float(settings.customJpegQuality)
         case .quality: return 0.92
         case .balanced: return 0.82
         case .saving: return 0.72
@@ -666,8 +667,9 @@ public final class SmartCompressor {
         }
     }
 
-    private func levelFor(_ preset: CompressionPreset) -> Int {
-        switch preset {
+    private func levelFor(_ settings: AppSettings) -> Int {
+        switch settings.preset {
+        case .custom: return settings.customPngLevel
         case .quality: return 2
         case .balanced: return 3
         case .saving: return 6
@@ -675,8 +677,9 @@ public final class SmartCompressor {
         }
     }
 
-    private func avifQuality(for preset: CompressionPreset) -> Int {
-        switch preset {
+    private func avifQuality(for settings: AppSettings) -> Int {
+        switch settings.preset {
+        case .custom: return settings.customAvifQuality
         case .quality: return 18
         case .balanced: return 28
         case .saving: return 38
@@ -684,8 +687,9 @@ public final class SmartCompressor {
         }
     }
 
-    private func avifSpeed(for preset: CompressionPreset) -> Int {
-        switch preset {
+    private func avifSpeed(for settings: AppSettings) -> Int {
+        switch settings.preset {
+        case .custom: return settings.customAvifSpeed
         case .quality: return 3
         case .balanced: return 4
         case .saving: return 5

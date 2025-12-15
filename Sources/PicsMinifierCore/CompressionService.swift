@@ -34,13 +34,13 @@ public final class CompressionService {
 		// Компрессия по формату без изменения контейнера
 		let result: ProcessResult
 		if utType.conforms(to: .jpeg) {
-			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.jpeg.identifier as CFString, quality: qualityFor(settings.preset), tiffLZW: false, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.jpeg.identifier as CFString, quality: qualityFor(settings), tiffLZW: false, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 		} else if utType.conforms(to: .png) {
 			// PNG: попытка lossless через ImageIO (уровень zlib недоступен публично)
 			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.png.identifier as CFString, quality: nil, tiffLZW: false, pngLossless: true, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 		} else if utType.conforms(to: .heic) || utType.conforms(to: .heif) {
 			let heicUT: CFString = (utType.conforms(to: .heic) ? UTType.heic.identifier : UTType.heif.identifier) as CFString
-			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: heicUT, quality: qualityFor(settings.preset), tiffLZW: false, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: heicUT, quality: qualityFor(settings), tiffLZW: false, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 		} else if utType.conforms(to: .tiff) {
 			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.tiff.identifier as CFString, quality: nil, tiffLZW: true, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 		} else if utType.conforms(to: UTType(importedAs: "org.webmproject.webp")) {
@@ -52,7 +52,7 @@ public final class CompressionService {
 					inputURL: inputURL,
 					outputURL: outputURL,
 					destUTType: UTType(importedAs: "org.webmproject.webp").identifier as CFString,
-					quality: qualityFor(settings.preset),
+					quality: qualityFor(settings),
 					tiffLZW: false,
 					pngLossless: false,
 					preserveMetadata: settings.preserveMetadata,
@@ -127,8 +127,9 @@ public final class CompressionService {
                 return status == "ok" || status == "success"
         }
 
-	private func qualityFor(_ preset: CompressionPreset) -> Double {
-		switch preset {
+	private func qualityFor(_ settings: AppSettings) -> Double {
+		switch settings.preset {
+		case .custom: return settings.customJpegQuality
 		case .quality: return 0.92
 		case .balanced: return 0.85
 		case .saving: return 0.75
@@ -339,6 +340,7 @@ public final class CompressionService {
 
 	private func webPQuality(for preset: CompressionPreset) -> Int {
 		switch preset {
+		case .custom: return 80
 		case .quality: return 90
 		case .balanced: return 80
 		case .saving: return 70

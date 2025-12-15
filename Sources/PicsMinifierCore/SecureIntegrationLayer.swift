@@ -48,8 +48,8 @@ public final class SecureIntegrationLayer {
             defer { self.currentTask = nil }
 
             let results = await self.processFiles(urls: urls, settings: settings, progressCallback: progressCallback)
-            guard !Task.isCancelled else { return }
-
+            
+            // Should completion run even if cancelled? Yes, to reset UI.
             await MainActor.run {
                 completion(results)
             }
@@ -174,7 +174,7 @@ public final class SecureIntegrationLayer {
             }
 
             // Process with CompressionService
-            let result = smartCompressor.compressFile(at: safeURL, settings: settings)
+            let result = await smartCompressor.compressFile(at: safeURL, settings: settings)
             return result
 
         } catch {
@@ -196,7 +196,7 @@ public final class SecureIntegrationLayer {
         var safeSettings = settings
         safeSettings.preset = .balanced // Use balanced instead of quality for large files
 
-        let result = smartCompressor.compressFile(at: url, settings: safeSettings)
+        let result = await smartCompressor.compressFile(at: url, settings: safeSettings)
         return result
     }
 

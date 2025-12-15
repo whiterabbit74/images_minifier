@@ -10,6 +10,12 @@ struct SimpleSettingsView: View {
     @Binding var appearanceMode: AppearanceMode
     @Binding var showDockIcon: Bool
     @Binding var showMenuBarIcon: Bool
+    
+    // Custom Settings
+    @Binding var customJpegQuality: Double
+    @Binding var customPngLevel: Int
+    @Binding var customAvifQuality: Int
+    @Binding var customAvifSpeed: Int
 
     var body: some View {
         ScrollView {
@@ -33,10 +39,22 @@ struct SimpleSettingsView: View {
                             Text("Баланс").tag(CompressionPreset.balanced)
                             Text("Сжатие").tag(CompressionPreset.saving)
                             Text("Авто").tag(CompressionPreset.auto)
+                            Text("Ручной").tag(CompressionPreset.custom)
                         }
                         .pickerStyle(.segmented)
+                        .onChange(of: preset) { _ in saveSettings() }
 
-                        SettingHint(text: "Умный режим подстраивает уровень сжатия под каждое изображение.")
+                        if preset == .custom {
+                            CustomSettingsPanel(
+                                jpegQuality: $customJpegQuality,
+                                pngLevel: $customPngLevel,
+                                avifQuality: $customAvifQuality,
+                                avifSpeed: $customAvifSpeed
+                            )
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        } else {
+                            SettingHint(text: "Умный режим подстраивает уровень сжатия под каждое изображение.")
+                        }
                     }
                 }
 
@@ -120,6 +138,11 @@ struct SimpleSettingsView: View {
             appearanceMode = .auto
             showDockIcon = true
             showMenuBarIcon = true
+            
+            customJpegQuality = 0.82
+            customPngLevel = 3
+            customAvifQuality = 28
+            customAvifSpeed = 4
         }
         saveSettings()
     }
@@ -134,6 +157,11 @@ struct SimpleSettingsView: View {
         defaults.set(appearanceMode.rawValue, forKey: "ui.appearanceMode")
         defaults.set(showDockIcon, forKey: "ui.showDockIcon")
         defaults.set(showMenuBarIcon, forKey: "ui.showMenuBarIcon")
+        
+        defaults.set(customJpegQuality, forKey: "settings.customJpegQuality")
+        defaults.set(customPngLevel, forKey: "settings.customPngLevel")
+        defaults.set(customAvifQuality, forKey: "settings.customAvifQuality")
+        defaults.set(customAvifSpeed, forKey: "settings.customAvifSpeed")
     }
 }
 
@@ -221,5 +249,90 @@ struct SettingHint: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 4)
+    }
+}
+
+struct CustomSettingsPanel: View {
+    @Binding var jpegQuality: Double
+    @Binding var pngLevel: Int
+    @Binding var avifQuality: Int
+    @Binding var avifSpeed: Int
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Divider()
+            
+            // JPEG
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("JPEG Качество")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text("\(Int(jpegQuality * 100))%")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $jpegQuality, in: 0.1...1.0)
+            }
+            
+            // PNG
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("PNG Оптимизация")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text("Level \(pngLevel)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Picker("", selection: $pngLevel) {
+                    ForEach(0...6, id: \.self) { level in
+                        Text("\(level)").tag(level)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+            
+            // AVIF Quality
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("AVIF Качество (CQ)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text("\(avifQuality)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: Binding(get: { Double(avifQuality) }, set: { avifQuality = Int($0) }), in: 0...63, step: 1)
+                Text("Меньше = Лучше качество")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            
+            // AVIF Speed
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("AVIF Скорость")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text("\(avifSpeed)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                 Slider(value: Binding(get: { Double(avifSpeed) }, set: { avifSpeed = Int($0) }), in: 0...10, step: 1)
+                 Text("Больше = Быстрей (хуже сжатие)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.top, 8)
     }
 }

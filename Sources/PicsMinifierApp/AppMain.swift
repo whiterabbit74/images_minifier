@@ -10,7 +10,7 @@ struct PicsMinifierMainApp: App {
 		}
 		#if os(macOS)
 		.commands {
-			CommandMenu(NSLocalizedString("Файл", comment: "")) {
+			CommandGroup(replacing: .newItem) {
 				Button(NSLocalizedString("Выбрать файлы…", comment: "")) { NotificationCenter.default.post(name: .openFiles, object: nil) }
 					.keyboardShortcut("o", modifiers: [.command])
 				Button(NSLocalizedString("Выбрать папку…", comment: "")) { NotificationCenter.default.post(name: .openFolder, object: nil) }
@@ -19,6 +19,10 @@ struct PicsMinifierMainApp: App {
 				Button(NSLocalizedString("Отмена", comment: "")) { NotificationCenter.default.post(name: .cancelProcessing, object: nil) }
 					.keyboardShortcut(.escape, modifiers: [])
 			}
+
+			// Clean up irrelevant standard items
+			CommandGroup(replacing: .saveItem) { }
+			CommandGroup(replacing: .printItem) { }
 
 			CommandGroup(replacing: .appInfo) {
 				Button(NSLocalizedString("О программе PicsMinifier", comment: "")) { AppUIManager.shared.showAboutPanel() }

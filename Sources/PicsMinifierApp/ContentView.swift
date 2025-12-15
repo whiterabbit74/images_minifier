@@ -17,6 +17,15 @@ struct ContentView: View {
     @State var preserveMetadata: Bool = true
     @State var convertToSRGB: Bool = false
     @State var enableGifsicle: Bool = true
+    
+    // Custom Settings
+    @State var customJpegQuality: Double = 0.82
+    @State var customPngLevel: Int = 3
+    @State var customAvifQuality: Int = 28
+    @State var customAvifSpeed: Int = 4
+    
+
+
     @State var sessionStats: SessionStats = .init()
     @State var showingSettings: Bool = false
     @State var isProcessing: Bool = false
@@ -25,142 +34,225 @@ struct ContentView: View {
     @State private var confettiCounter: Int = 0 // Trigger for confetti
 
     var body: some View {
-        ZStack {
-            // Background Gradient for depth
-            AmbientBackground()
-
-            // Main Content
-            VStack(spacing: 0) {
-                // Header / Toolbar Area (Custom implementation for cleaner look)
-                HStack {
-                    Spacer()
-                    HStack(spacing: 12) {
-                        ThemeToggleButton(appearanceMode: $appearanceMode, toggleAction: toggleAppearanceMode)
-                        SettingsButton(action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { showingSettings = true } })
-                    }
-                    .padding(.top, 16)
-                    .padding(.trailing, 16)
-                }
-
-                // Central Drop Zone Area
-                ZStack {
-                    if isProcessing || sessionStats.totalInBatch > 0 {
-                         ProcessingView(stats: sessionStats, isProcessing: isProcessing, currentFileName: currentFileName)
-                             .transition(.move(edge: .bottom).combined(with: .opacity))
-                    } else {
-                        DropZoneView(isTargeted: isTargeted)
-                            .transition(.scale(scale: 0.95).combined(with: .opacity))
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isTargeted) { providers in
-                    if isProcessing { return false }
-                    Task { await handleDrop(providers: providers) }
-                    return true
-                }
-
-                // Footer Actions
-                if !isProcessing && sessionStats.totalInBatch == 0 {
-                    ActionButtonsFooter(
-                        pickFiles: pickFiles,
-                        pickFolder: pickFolder
-                    )
-                    .padding(.bottom, 24)
-                } else if isProcessing {
-                     Button(NSLocalizedString("Отмена", comment: "")) { ProcessingManager.shared.cancel() }
-                        .buttonStyle(GlassButtonStyle(color: .red))
-                        .padding(.bottom, 24)
-                } else {
-                     Button(NSLocalizedString("Готово", comment: "")) {
-                         withAnimation {
-                              // Reset stats for new batch
-                              sessionStats = .init()
-                         }
-                     }
-                     .buttonStyle(GlassButtonStyle(color: .green))
-                     .padding(.bottom, 24)
-                     // Opacity 0.0 removed - button is now visible
-                }
-
-                // Global Stats Footer
-                GlobalStatsFooter()
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
+        mainLayout
+            .frame(width: 600, height: 600)
+            .modifier(AppearanceModifier(mode: appearanceMode))
+            .onAppear(perform: setupApp)
+            .onChange(of: appearanceMode, perform: handleAppearanceChange)
+            .onChange(of: showDockIcon, perform: updateDockIcon)
+            .onChange(of: showMenuBarIcon, perform: updateMenuBarIcon)
+            .onChange(of: preset, perform: savePreset)
+            .onChange(of: saveMode, perform: saveSaveMode)
+            .onChange(of: preserveMetadata, perform: savePreserveMetadata)
+            .onChange(of: convertToSRGB, perform: saveConvertToSRGB)
+            .onChange(of: enableGifsicle, perform: saveEnableGifsicle)
+            .onChange(of: customJpegQuality, perform: saveCustomJpegQuality)
+            .onChange(of: customPngLevel, perform: saveCustomPngLevel)
+            .onChange(of: customAvifQuality, perform: saveCustomAvifQuality)
+            .onChange(of: customAvifSpeed, perform: saveCustomAvifSpeed)
+            .onChange(of: isProcessing, perform: handleProcessingChange)
+            .onDisappear {
+                 Task { @MainActor in teardownProgressUpdates() }
             }
-            .blur(radius: showingSettings ? 10 : 0)
-            .scaleEffect(showingSettings ? 0.95 : 1)
+    }
 
-            // Settings overlay
+    @ViewBuilder
+    var mainLayout: some View {
+        ZStack {
+            contentStack
+            
             if showingSettings {
-                Color.black.opacity(0.2)
-                    .ignoresSafeArea()
-                    .onTapGesture { withAnimation { showingSettings = false } }
-                    .transition(.opacity)
-
-                SimpleSettingsView(
-                    preset: $preset,
-                    saveMode: $saveMode,
-                    preserveMetadata: $preserveMetadata,
-                    convertToSRGB: $convertToSRGB,
-                    enableGifsicle: $enableGifsicle,
-                    appearanceMode: $appearanceMode,
-                    showDockIcon: $showDockIcon,
-                    showMenuBarIcon: $showMenuBarIcon
-                )
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(.white.opacity(0.2), lineWidth: 1)
-                )
-                .overlay(alignment: .topTrailing) {
-                    Button(action: { withAnimation { showingSettings = false } }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                            .padding(12)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(40)
-                .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.9)))
-                .zIndex(1)
+                 settingsOverlay
             }
             
-            // Confetti Overlay
             ConfettiView(counter: confettiCounter)
-                .zIndex(2)
         }
-        .frame(width: 600, height: 600)
-        .modifier(AppearanceModifier(mode: appearanceMode))
-        .onAppear(perform: setupApp)
-        .onChange(of: appearanceMode, perform: handleAppearanceChange)
-        .onChange(of: showDockIcon) { val in
-            UserDefaults.standard.set(val, forKey: "ui.showDockIcon")
-            AppUIManager.shared.setDockIconVisible(val)
-        }
-        .onChange(of: showMenuBarIcon) { val in
-            UserDefaults.standard.set(val, forKey: "ui.showMenuBarIcon")
-            AppUIManager.shared.setMenuBarIconVisible(val)
-        }
-        .onChange(of: preset) { val in UserDefaults.standard.set(val.rawValue, forKey: "settings.preset") }
-        .onChange(of: saveMode) { val in UserDefaults.standard.set(val.rawValue, forKey: "settings.saveMode") }
-        .onChange(of: preserveMetadata) { val in UserDefaults.standard.set(val, forKey: "settings.preserveMetadata") }
-        .onChange(of: convertToSRGB) { val in UserDefaults.standard.set(val, forKey: "settings.convertToSRGB") }
-        .onChange(of: enableGifsicle) { val in UserDefaults.standard.set(val, forKey: "settings.enableGifsicle") }
-        .onChange(of: isProcessing) { processing in
-            if !processing && sessionStats.totalInBatch > 0 && sessionStats.failedFiles == 0 {
-                // Success! Trigger confetti
-                confettiCounter += 1
-            }
-        }
-        .onDisappear {
-             Task { @MainActor in teardownProgressUpdates() }
+    }
+
+    // MARK: - Change Handlers
+
+    private func updateDockIcon(_ val: Bool) {
+        UserDefaults.standard.set(val, forKey: "ui.showDockIcon")
+        AppUIManager.shared.setDockIconVisible(val)
+    }
+
+    private func updateMenuBarIcon(_ val: Bool) {
+        UserDefaults.standard.set(val, forKey: "ui.showMenuBarIcon")
+        AppUIManager.shared.setMenuBarIconVisible(val)
+    }
+
+    private func savePreset(_ val: CompressionPreset) {
+        UserDefaults.standard.set(val.rawValue, forKey: "settings.preset")
+    }
+
+    private func saveSaveMode(_ val: SaveMode) {
+        UserDefaults.standard.set(val.rawValue, forKey: "settings.saveMode")
+    }
+
+    private func savePreserveMetadata(_ val: Bool) {
+        UserDefaults.standard.set(val, forKey: "settings.preserveMetadata")
+    }
+
+    private func saveConvertToSRGB(_ val: Bool) {
+        UserDefaults.standard.set(val, forKey: "settings.convertToSRGB")
+    }
+
+    private func saveEnableGifsicle(_ val: Bool) {
+        UserDefaults.standard.set(val, forKey: "settings.enableGifsicle")
+    }
+
+    private func saveCustomJpegQuality(_ val: Double) {
+        UserDefaults.standard.set(val, forKey: "settings.customJpegQuality")
+    }
+
+    private func saveCustomPngLevel(_ val: Int) {
+        UserDefaults.standard.set(val, forKey: "settings.customPngLevel")
+    }
+
+    private func saveCustomAvifQuality(_ val: Int) {
+        UserDefaults.standard.set(val, forKey: "settings.customAvifQuality")
+    }
+
+    private func saveCustomAvifSpeed(_ val: Int) {
+        UserDefaults.standard.set(val, forKey: "settings.customAvifSpeed")
+    }
+
+    private func handleProcessingChange(_ processing: Bool) {
+        if !processing && sessionStats.totalInBatch > 0 && sessionStats.failedFiles == 0 {
+            // Success! Trigger confetti
+            confettiCounter += 1
         }
     }
 
     // MARK: - Logic & Actions
+
+    @ViewBuilder
+    private var contentStack: some View {
+        ZStack {
+            // Background Gradient
+            AmbientBackground()
+
+            // Main Content
+            mainContent
+                .blur(radius: showingSettings ? 10 : 0)
+                .scaleEffect(showingSettings ? 0.95 : 1)
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            headerView
+            centerView
+            footerView
+            globalStatsView
+        }
+    }
+
+    @ViewBuilder
+    private var headerView: some View {
+        HStack {
+            Spacer()
+            HStack(spacing: 12) {
+                ThemeToggleButton(appearanceMode: $appearanceMode, toggleAction: toggleAppearanceMode)
+                SettingsButton(action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { showingSettings = true } })
+            }
+            .padding(.top, 16)
+            .padding(.trailing, 16)
+        }
+    }
+
+    @ViewBuilder
+    private var centerView: some View {
+        ZStack {
+            if isProcessing || sessionStats.totalInBatch > 0 {
+                 ProcessingView(stats: sessionStats, isProcessing: isProcessing, currentFileName: currentFileName)
+                     .transition(.opacity)
+            } else {
+                DropZoneView(isTargeted: isTargeted)
+                    .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isTargeted) { providers in
+            if isProcessing { return false }
+            Task { await handleDrop(providers: providers) }
+            return true
+        }
+    }
+
+    @ViewBuilder
+    private var footerView: some View {
+        Group {
+            if !isProcessing && sessionStats.totalInBatch == 0 {
+                ActionButtonsFooter(
+                    pickFiles: pickFiles,
+                    pickFolder: pickFolder
+                )
+            } else if isProcessing {
+                 Button(NSLocalizedString("Отмена", comment: "")) { NotificationCenter.default.post(name: .cancelProcessing, object: nil) }
+                    .buttonStyle(GlassButtonStyle(color: .red))
+            } else {
+                 Button(NSLocalizedString("Готово", comment: "")) {
+                     withAnimation {
+                          // Reset stats for new batch
+                          sessionStats = .init()
+                     }
+                 }
+                 .buttonStyle(GlassButtonStyle(color: .green))
+            }
+        }
+        .padding(.bottom, 24)
+    }
+
+    @ViewBuilder
+    private var globalStatsView: some View {
+        GlobalStatsFooter()
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+    }
+
+    @ViewBuilder
+    private var settingsOverlay: some View {
+        Color.black.opacity(0.2)
+            .ignoresSafeArea()
+            .onTapGesture { withAnimation { showingSettings = false } }
+            .transition(.opacity)
+
+        SimpleSettingsView(
+            preset: $preset,
+            saveMode: $saveMode,
+            preserveMetadata: $preserveMetadata,
+            convertToSRGB: $convertToSRGB,
+            enableGifsicle: $enableGifsicle,
+            appearanceMode: $appearanceMode,
+            showDockIcon: $showDockIcon,
+            showMenuBarIcon: $showMenuBarIcon,
+            customJpegQuality: $customJpegQuality,
+            customPngLevel: $customPngLevel,
+            customAvifQuality: $customAvifQuality,
+            customAvifSpeed: $customAvifSpeed
+        )
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(.white.opacity(0.2), lineWidth: 1)
+        )
+        .overlay(alignment: .topTrailing) {
+            Button(action: { withAnimation { showingSettings = false } }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .padding(12)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(40)
+        .transition(.opacity)
+        .zIndex(1)
+    }
 
     private func setupApp() {
         AppUIManager.shared.lockMainWindowSize(width: 600, height: 600)
@@ -194,6 +286,19 @@ struct ContentView: View {
         }
         showDockIcon = UserDefaults.standard.object(forKey: "ui.showDockIcon") as? Bool ?? showDockIcon
         showMenuBarIcon = UserDefaults.standard.object(forKey: "ui.showMenuBarIcon") as? Bool ?? showMenuBarIcon
+        
+        customJpegQuality = UserDefaults.standard.double(forKey: "settings.customJpegQuality")
+        if customJpegQuality == 0 { customJpegQuality = 0.82 }
+        
+        customPngLevel = UserDefaults.standard.integer(forKey: "settings.customPngLevel")
+        if customPngLevel == 0 { customPngLevel = 3 }
+        
+        customAvifQuality = UserDefaults.standard.integer(forKey: "settings.customAvifQuality")
+        if customAvifQuality == 0 { customAvifQuality = 28 }
+        
+        customAvifSpeed = UserDefaults.standard.integer(forKey: "settings.customAvifSpeed")
+        if customAvifSpeed == 0 { customAvifSpeed = 4 }
+
         AppUIManager.shared.setDockIconVisible(showDockIcon)
         AppUIManager.shared.setMenuBarIconVisible(showMenuBarIcon)
     }
@@ -510,14 +615,23 @@ struct ProcessingView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     
-                if isProcessing && !currentFileName.isEmpty {
-                    Text(currentFileName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: 300)
-                        .transition(.opacity)
+                ZStack {
+                    if isProcessing && !currentFileName.isEmpty {
+                        Text(currentFileName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 300)
+                            .id(currentFileName)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .offset(y: 10)),
+                                removal: .opacity.combined(with: .offset(y: -10))
+                            ))
+                    }
                 }
+                .frame(height: 20)
+                .clipped()
+                .animation(.easeInOut(duration: 0.25), value: currentFileName)
             }
 
             // Modern Progress Bar
