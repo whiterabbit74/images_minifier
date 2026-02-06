@@ -11,12 +11,12 @@ struct PicsMinifierMainApp: App {
 		#if os(macOS)
 		.commands {
 			CommandGroup(replacing: .newItem) {
-				Button(NSLocalizedString("Выбрать файлы…", comment: "")) { NotificationCenter.default.post(name: .openFiles, object: nil) }
+				Button(NSLocalizedString("Open Files…", comment: "")) { NotificationCenter.default.post(name: .openFiles, object: nil) }
 					.keyboardShortcut("o", modifiers: [.command])
-				Button(NSLocalizedString("Выбрать папку…", comment: "")) { NotificationCenter.default.post(name: .openFolder, object: nil) }
+				Button(NSLocalizedString("Open Folder…", comment: "")) { NotificationCenter.default.post(name: .openFolder, object: nil) }
 					.keyboardShortcut("O", modifiers: [.command, .shift])
 				Divider()
-				Button(NSLocalizedString("Отмена", comment: "")) { NotificationCenter.default.post(name: .cancelProcessing, object: nil) }
+				Button(NSLocalizedString("Cancel", comment: "")) { NotificationCenter.default.post(name: .cancelProcessing, object: nil) }
 					.keyboardShortcut(.escape, modifiers: [])
 			}
 
@@ -25,11 +25,11 @@ struct PicsMinifierMainApp: App {
 			CommandGroup(replacing: .printItem) { }
 
 			CommandGroup(replacing: .appInfo) {
-				Button(NSLocalizedString("О программе PicsMinifier", comment: "")) { AppUIManager.shared.showAboutPanel() }
+				Button(NSLocalizedString("About PicsMinifier", comment: "")) { AppUIManager.shared.showAboutPanel() }
 			}
 
 			CommandGroup(replacing: .appSettings) {
-				Button(NSLocalizedString("Настройки…", comment: "")) { AppUIManager.shared.openSettings() }
+				Button(NSLocalizedString("Settings…", comment: "")) { AppUIManager.shared.openSettings() }
 					.keyboardShortcut(",", modifiers: [.command])
 			}
 		}
@@ -37,28 +37,34 @@ struct PicsMinifierMainApp: App {
 	}
 
 	init() {
-		// Инициализируем crash logger
+		// Initialize language
+		let languageRaw = UserDefaults.standard.string(forKey: "ui.language") ?? AppLanguage.auto.rawValue
+		if let language = AppLanguage(rawValue: languageRaw) {
+			LanguageManager.shared.applyLanguage(language)
+		}
+
+		// Initialize crash logger
 		CrashLogger.shared.logInfo("Application starting", context: "AppMain")
 
-		// Отключаем иконки полностью для исправления крашей
+		// Disable icons completely to fix crashes
 		// DispatchQueue.main.async {
 		//     AppUIManager.shared.applyAppIcons()
 		//     CrashLogger.shared.logInfo("App icons applied", context: "AppMain")
 		// }
 		CrashLogger.shared.logInfo("App icons disabled to prevent crashes", context: "AppMain")
 
-		// Сбросим CSV-лог и начнём заново с новым форматом
+		// Reset CSV log and start fresh with new format
                 let logURL = AppPaths.logCSVURL()
                 if CSVLogger(logURL: logURL) == nil {
                         CrashLogger.shared.logError("Failed to initialize CSV logger", context: "AppMain")
                 }
-		// Привяжем обновление прогресса
+		// Bind progress update
 		Task { @MainActor in
 			let dummyView = ContentView()
-			// Тригер для регистрации наблюдателя. В рабочем коде биндим в onAppear
+			// Trigger to register observer. In production code bind in onAppear
 			_ = dummyView
 		}
-		// Установим путь до встроенной libwebp.dylib при наличии
+		// Set path to embedded libwebp.dylib if present
 		if ProcessInfo.processInfo.environment["PICS_LIBWEBP_PATH"] == nil {
 			if let libURL = Bundle.main.url(forResource: "libwebp", withExtension: "dylib") {
 				setenv("PICS_LIBWEBP_PATH", libURL.path, 1)

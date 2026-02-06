@@ -1,0 +1,171 @@
+/* UI Tabs */
+"Optimizer" = "Optimizer";
+"Statistics" = "Statistics";
+"Settings" = "Settings";
+
+/* Settings Context */
+"GENERAL" = "GENERAL";
+"INTERFACE" = "INTERFACE";
+"Launch at Login" = "Launch at Login";
+"Notify on Completion" = "Notify on Completion";
+"Theme" = "Theme";
+"System" = "System";
+"Dark" = "Dark";
+"Light" = "Light";
+"App Icon" = "App Icon";
+"Dock" = "Dock";
+"Menu Bar" = "Menu Bar";
+"Both" = "Both";
+"Reset All" = "Reset All";
+
+/* Sidebar / Presets */
+"PRESETS" = "PRESETS";
+"Base Preset" = "Base Preset";
+"My Presets" = "My Presets";
+"Save Preset" = "Save Preset";
+"Save current configuration as:" = "Save current configuration as:";
+"My Custom Preset" = "My Custom Preset";
+"Cancel" = "Cancel";
+"Save" = "Save";
+"Save current settings" = "Save current settings";
+
+/* Sidebar / Hints */
+"Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size." = "Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size.";
+"Controls clarity. 80-85%% is the 'sweet spot'—visually identical to original but much smaller. Go lower (60-70%%) only if file size is critical." = "Controls clarity. 80-85% is the 'sweet spot'—visually identical to original but much smaller. Go lower (60-70%) only if file size is critical.";
+"How hard the CPU works to find patterns. Level 3 is fast. Level 9 tries everything to squeeze out bytes (can be very slow). No quality is lost." = "How hard the CPU works to find patterns. Level 3 is fast. Level 9 tries everything to squeeze out bytes (can be very slow). No quality is lost.";
+"Modern format quality. Lower numbers (20-30) are excellent. Higher (50+) keep more noise/grain but produce larger files." = "Modern format quality. Lower numbers (20-30) are excellent. Higher (50+) keep more noise/grain but produce larger files.";
+"Encoding effort (0-10). Speed 0 is painfully slow but creates the smallest files. Speed 6+ is instant. Speed 4 is a good balance." = "Encoding effort (0-10). Speed 0 is painfully slow but creates the smallest files. Speed 6+ is instant. Speed 4 is a good balance.";
+"Lossy (Gifsicle) is magic for GIFs—it can reduce size by 70%% by slightly simplifying colors. Lossless keeps every pixel but stays huge." = "Lossy (Gifsicle) is magic for GIFs—it can reduce size by 70% by slightly simplifying colors. Lossless keeps every pixel but stays huge.";
+"Hover over settings for details." = "Hover over settings for details.";
+
+/* Sidebar / Settings */
+"JPEG Quality" = "JPEG Quality";
+"PNG Safe" = "PNG Safe";
+"AVIF Quality" = "AVIF Quality";
+"AVIF Speed" = "AVIF Speed";
+"GIF Mode" = "GIF Mode";
+"Lossy (Gifsicle)" = "Lossy (Gifsicle)";
+"Lossless" = "Lossless";
+
+/* Resizing */
+"RESIZE" = "RESIZE";
+"Resize Images" = "Resize Images";
+"Target Size" = "Target Size";
+"Px" = "Px";
+"Common Sizes" = "Common Sizes";
+"Mode" = "Mode";
+"Fit (Longest Edge)" = "Fit (Longest Edge)";
+"Width" = "Width";
+"Height" = "Height";
+"Shrink images to a specific size before compressing. Great for web or thumbnails." = "Shrink images to a specific size before compressing. Great for web or thumbnails.";
+"Choose a standard size or enter a custom value." = "Choose a standard size or enter a custom value.";
+"'Fit' keeps the aspect ratio within the box. 'Width'/'Height' enforce that dimension." = "'Fit' keeps the aspect ratio within the box. 'Width'/'Height' enforce that dimension.";
+
+/* Workflow */
+"WORKFLOW" = "WORKFLOW";
+"Direct Save" = "Direct Save";
+"Keep Metadata" = "Keep Metadata";
+"Convert to sRGB" = "Convert to sRGB";
+"Start compressing files immediately after dropping them. Disable to review list first." = "Start compressing files immediately after dropping them. Disable to review list first.";
+"Preserve EXIF, GPS, and creation dates. Increases file size slightly. Turn off for maximum privacy/saving." = "Preserve EXIF, GPS, and creation dates. Increases file size slightly. Turn off for maximum privacy/saving.";
+"Standardizes color profile for maximum web compatibility. Fixes 'washed out' colors in some browsers." = "Standardizes color profile for maximum web compatibility. Fixes 'washed out' colors in some browsers.";
+
+/* Output */
+"OUTPUT" = "OUTPUT";
+"Where files go: 'Suffix' adds _min to name (safest). 'Separate Folder' keeps them organized. 'Overwrite' replaces originals (Dangerous!)." = "Where files go: 'Suffix' adds _min to name (safest). 'Separate Folder' keeps them organized. 'Overwrite' replaces originals (Dangerous!).";
+"Warning: Original files will be replaced and cannot be recovered." = "Warning: Original files will be replaced and cannot be recovered.";
+
+/* Optimizer / Main View */
+"Drag files here to start batch" = "Drag files here to start batch";
+"Supports nested folders" = "Supports nested folders";
+"Toggle Theme" = "Toggle Theme";
+"Start" = "Start";
+"Optimizing..." = "Optimizing...";
+"Done with Errors" = "Done with Errors";
+"Complete!" = "Complete!";
+
+/* Results Table */
+"File" = "File";
+"Original" = "Original";
+"Optimized" = "Optimized";
+"Savings" = "Savings";
+"Status" = "Status";
+"Clear List" = "Clear List";
+"Saved" = "Saved";
+"Pending" = "Pending";
+"Processing" = "Processing";
+"Done" = "Done";
+"Error" = "Error";
+"Skipped" = "Skipped";
+"Skip" = "Skip";
+"%d Files processed successfully" = "%d Files processed successfully";
+
+/* Statistics */
+"Real-time compression metrics" = "Real-time compression metrics";
+"CURRENT SESSION" = "CURRENT SESSION";
+"Session Files" = "Session Files";
+"Session Saved" = "Session Saved";
+"LIFETIME TOTALS" = "LIFETIME TOTALS";
+"Total Files" = "Total Files";
+"Total Saved" = "Total Saved";
+"TOTAL SPACE SAVED" = "TOTAL SPACE SAVED";
+"AVERAGE REDUCTION" = "AVERAGE REDUCTION";
+"in last session" = "in last session";
+"TOTAL FILES PROCESSED: %d" = "TOTAL FILES PROCESSED: %d";
+"SAVINGS BY FORMAT" = "SAVINGS BY FORMAT";
+"OTHER" = "OTHER";
+"Statistics Disabled" = "Statistics Disabled";
+"Enable statistics in settings to track your savings." = "Enable statistics in settings to track your savings.";
+"Session and lifetime performance metrics" = "Session and lifetime performance metrics";
+"Disable statistics" = "Disable statistics";
+"When disabled, compression data is not saved." = "When disabled, compression data is not saved.";
+
+/* Additional Settings keys */
+"Appearance" = "Appearance";
+"Appearance Mode" = "Appearance Mode";
+"System Default" = "System Default";
+"Interface Mode" = "Interface Mode";
+"Show only with savings" = "Show only with savings";
+"Compression Quality" = "Compression Quality";
+"Compression Preset" = "Compression Preset";
+"Maximum Quality" = "Maximum Quality";
+"Balanced" = "Balanced";
+"Maximum Savings" = "Maximum Savings";
+"Automatic" = "Automatic";
+"File Save Mode" = "File Save Mode";
+"Add suffix '_compressed'" = "Add suffix '_compressed'";
+"Create 'Compressor' folder" = "Create 'Compressor' folder";
+"Overwrite originals" = "Overwrite originals";
+"Image Dimensions" = "Image Dimensions";
+"Max side dimension" = "Max side dimension";
+"pixels" = "pixels";
+"No limits" = "No limits";
+"Dimension limited" = "Dimension limited";
+"0 — no dimension limit" = "0 — no dimension limit";
+"Preserve metadata" = "Preserve metadata";
+"Optimize GIF" = "Optimize GIF";
+"Files processed: %lld" = "Files processed: %lld";
+"Total saved: %@" = "Total saved: %@";
+"Reset Statistics" = "Reset Statistics";
+"Supported Formats" = "Supported Formats";
+"Libraries used for file processing" = "Libraries used for file processing";
+"Improve compression!" = "Improve compression!";
+"• JPEG: install MozJPEG for +35% better compression" = "• JPEG: install MozJPEG for +35% better compression";
+"• PNG: install Oxipng for +20% better compression" = "• PNG: install Oxipng for +20% better compression";
+"• GIF: install Giflossy for +30% better compression" = "• GIF: install Giflossy for +30% better compression";
+"Command: brew install mozjpeg oxipng giflossy" = "Command: brew install mozjpeg oxipng giflossy";
+"Tools" = "Tools";
+"Check tool availability" = "Check tool availability";
+"✅ System WebP codec available" = "✅ System WebP codec available";
+"✅ Embedded WebP available" = "✅ Embedded WebP available";
+"❌ WebP unavailable" = "❌ WebP unavailable";
+"❌ gifsicle not found" = "❌ gifsicle not found";
+"✅ gifsicle: %@" = "✅ gifsicle: %@";
+"Advanced" = "Advanced";
+"CSV Log" = "CSV Log";
+"Logs Folder" = "Logs Folder";
+"Overwrite Originals" = "Overwrite Originals";
+"Files will be overwritten irrecoverably. Are you sure?" = "Files will be overwritten irrecoverably. Are you sure?";
+"Reset statistics?" = "Reset statistics?";
+"Counters will be reset and CSV log deleted. This action is irreversible." = "Counters will be reset and CSV log deleted. This action is irreversible.";
+"Reset" = "Reset";

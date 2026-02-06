@@ -39,6 +39,10 @@ public final class SecurityUtils {
             allowedDirectories.append(legacyTmp)
         }
 
+        if let bundleURL = Bundle.main.bundleURL.standardizedFileURL as URL? {
+            allowedDirectories.append(bundleURL)
+        }
+
         allowedDirectories.append(URL(fileURLWithPath: "/tmp").standardizedFileURL)
         allowedDirectories.append(URL(fileURLWithPath: "/private/tmp").standardizedFileURL)
         allowedDirectories.append(URL(fileURLWithPath: "/Volumes").standardizedFileURL)

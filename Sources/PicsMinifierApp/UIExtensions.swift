@@ -53,35 +53,51 @@ extension View {
 // MARK: - Pro Theme Colors
 
 extension Color {
-    static let proBg = Color(nsColor: NSColor(name: "proBg", dynamicProvider: { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.12, alpha: 1.0) : NSColor(white: 0.93, alpha: 1.0)
-    }))
+    static var proBg: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.12, alpha: 1.0) : NSColor(white: 0.93, alpha: 1.0)
+        }))
+    }
     
-    static let proPanel = Color(nsColor: NSColor(name: "proPanel", dynamicProvider: { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.145, alpha: 1.0) : NSColor(white: 1.0, alpha: 1.0)
-    }))
+    static var proPanel: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.145, alpha: 1.0) : NSColor(white: 1.0, alpha: 1.0)
+        }))
+    }
     
-    static let proBorder = Color(nsColor: NSColor(name: "proBorder", dynamicProvider: { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.2, alpha: 1.0) : NSColor(white: 0.85, alpha: 1.0)
-    }))
+    static var proBorder: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.2, alpha: 1.0) : NSColor(white: 0.85, alpha: 1.0)
+        }))
+    }
     
-    static let proTextMain = Color(nsColor: NSColor(name: "proTextMain", dynamicProvider: { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.8, alpha: 1.0) : NSColor(white: 0.2, alpha: 1.0)
-    }))
+    static var proTextMain: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.8, alpha: 1.0) : NSColor(white: 0.2, alpha: 1.0)
+        }))
+    }
     
     // Increased contrast for Dark Mode (0.52 -> 0.70)
-    static let proTextMuted = Color(nsColor: NSColor(name: "proTextMuted", dynamicProvider: { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.70, alpha: 1.0) : NSColor(white: 0.5, alpha: 1.0)
-    }))
+    static var proTextMuted: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.70, alpha: 1.0) : NSColor(white: 0.5, alpha: 1.0)
+        }))
+    }
     
-    static let proToolbar = Color(nsColor: NSColor(name: "proToolbar", dynamicProvider: { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.18, alpha: 1.0) : NSColor(white: 1.0, alpha: 1.0)
-    }))
+    static var proToolbar: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.18, alpha: 1.0) : NSColor(white: 1.0, alpha: 1.0)
+        }))
+    }
     
-    static let proBtnActive = Color(nsColor: NSColor(name: "proBtnActive", dynamicProvider: { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.22, alpha: 1.0) : NSColor(white: 0.90, alpha: 1.0)
-    }))
+    static var proBtnActive: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.22, alpha: 1.0) : NSColor(white: 0.90, alpha: 1.0)
+        }))
+    }
     
-    static let proAccent = Color(red: 14/255, green: 99/255, blue: 156/255)
-    static let proGreen = Color(red: 76/255, green: 175/255, blue: 80/255)
+    static var proAccent: Color { Color(red: 14/255, green: 99/255, blue: 156/255) }
+    static var proGreen: Color { Color(red: 76/255, green: 175/255, blue: 80/255) }
+    static var proOrange: Color { Color(red: 255/255, green: 152/255, blue: 0/255) }
+    static var proPurple: Color { Color(red: 156/255, green: 39/255, blue: 176/255) }
 }

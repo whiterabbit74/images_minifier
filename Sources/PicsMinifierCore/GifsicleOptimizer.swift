@@ -21,7 +21,7 @@ public final class GifsicleOptimizer {
         if lossy {
             args.append("--lossy=80")
         }
-		// Если перезаписываем тот же файл — пишем во временный, затем заменяем
+		// If overwriting the same file - write to temporary, then replace
 		let overwriteSamePath = (inputURL.path == outputURL.path)
 		let finalOutputURL: URL
 		if overwriteSamePath {
@@ -54,7 +54,7 @@ public final class GifsicleOptimizer {
 			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "gifsicle-nonzero-exit")
 		}
 		if overwriteSamePath {
-			// Заменим оригинал результатом
+			// Replace original with result
 			try? fm.removeItem(at: inputURL)
 			try? fm.moveItem(at: finalOutputURL, to: inputURL)
 		}
@@ -67,7 +67,7 @@ public final class GifsicleOptimizer {
 	private func locateGifsicle() -> URL? {
 		let fm = FileManager.default
 		var candidates: [URL] = []
-		// PICS_GIFSICLE_PATH (override): если задан и невалиден — НЕ продолжаем поиск
+		// PICS_GIFSICLE_PATH (override): if set and invalid - DO NOT continue search
 		if let overridePath = ProcessInfo.processInfo.environment["PICS_GIFSICLE_PATH"], !overridePath.isEmpty {
 			let url = URL(fileURLWithPath: overridePath)
 			if fm.isExecutableFile(atPath: url.path) { return url }

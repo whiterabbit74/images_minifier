@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage("ui.showDockIcon") private var showDockIcon: Bool = true
     @AppStorage("ui.showMenuBarIcon") private var showMenuBarIcon: Bool = true
     @AppStorage("ui.showOnlyWithGain") private var showOnlyWithGain: Bool = false
+    @AppStorage("stats.disableStatistics") private var disableStatistics: Bool = false
 
     @State private var confirmOverwrite: Bool = false
     @State private var maxDimText: String = ""
@@ -55,25 +56,25 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Заголовок
+                // Header
                 HStack {
                     Image(systemName: "gearshape.fill")
                         .font(.title)
                         .foregroundColor(.accentColor)
-                    Text(NSLocalizedString("Настройки", comment: ""))
+                    Text(NSLocalizedString("Settings", comment: ""))
                         .font(.title2)
                         .fontWeight(.bold)
                     Spacer()
                 }
                 .padding(.top, 8)
 
-                // 🎨 ВНЕШНИЙ ВИД
-                GroupBox(label: Label("Внешний вид", systemImage: "eye.fill")
+                // 🎨 APPEARANCE
+                GroupBox(label: Label(NSLocalizedString("Appearance", comment: ""), systemImage: "eye.fill")
                     .foregroundColor(.blue)) {
                     VStack(alignment: .leading, spacing: 12) {
-                        // Режим оформления
+                        // Appearance Mode
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Режим оформления")
+                            Text(NSLocalizedString("Appearance Mode", comment: ""))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                             Picker("", selection: Binding(
@@ -85,17 +86,17 @@ struct SettingsView: View {
                             )) {
                                 HStack {
                                     Image(systemName: "sun.max.fill")
-                                    Text(NSLocalizedString("Светлая", comment: ""))
+                                    Text(NSLocalizedString("Light", comment: ""))
                                 }.tag(AppearanceMode.light)
 
                                 HStack {
                                     Image(systemName: "moon.fill")
-                                    Text(NSLocalizedString("Тёмная", comment: ""))
+                                    Text(NSLocalizedString("Dark", comment: ""))
                                 }.tag(AppearanceMode.dark)
 
                                 HStack {
                                     Image(systemName: "circle.lefthalf.filled")
-                                    Text(NSLocalizedString("Как в системе", comment: ""))
+                                    Text(NSLocalizedString("System Default", comment: ""))
                                 }.tag(AppearanceMode.auto)
                             }
                             .pickerStyle(.radioGroup)
@@ -103,9 +104,9 @@ struct SettingsView: View {
 
                         Divider()
 
-                        // Режим отображения (Interface Mode)
+                        // Interface Mode
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Режим интерфейса")
+                            Text(NSLocalizedString("Interface Mode", comment: ""))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
 
@@ -115,7 +116,7 @@ struct SettingsView: View {
                                     mode: .dock,
                                     current: interfaceMode,
                                     icon: "dock.rectangle",
-                                    title: "Dock"
+                                    title: NSLocalizedString("Dock", comment: "")
                                 ) {
                                     setInterfaceMode(.dock)
                                 }
@@ -128,7 +129,7 @@ struct SettingsView: View {
                                     mode: .both,
                                     current: interfaceMode,
                                     icon: "macwindow.on.rectangle",
-                                    title: "Везде"
+                                    title: NSLocalizedString("Both", comment: "")
                                 ) {
                                     setInterfaceMode(.both)
                                 }
@@ -141,7 +142,7 @@ struct SettingsView: View {
                                     mode: .menuBar,
                                     current: interfaceMode,
                                     icon: "menubar.rectangle",
-                                    title: "Menu Bar"
+                                    title: NSLocalizedString("Menu Bar", comment: "")
                                 ) {
                                     setInterfaceMode(.menuBar)
                                 }
@@ -154,9 +155,9 @@ struct SettingsView: View {
                             )
                         }
 
-                        // Показывать только с экономией
+                        // Show only with savings
                         HStack {
-                            Toggle(NSLocalizedString("Показывать только с экономией", comment: ""), isOn: $showOnlyWithGain)
+                            Toggle(NSLocalizedString("Show only with savings", comment: ""), isOn: $showOnlyWithGain)
                                 .onChange(of: showOnlyWithGain) { _ in notify() }
                                 .toggleStyle(.switch)
                             Spacer()
@@ -165,12 +166,12 @@ struct SettingsView: View {
                     .padding(12)
                 }
 
-                // 🔧 КАЧЕСТВО СЖАТИЯ
-                GroupBox(label: Label("Качество сжатия", systemImage: "wand.and.stars")
+                // 🔧 COMPRESSION QUALITY
+                GroupBox(label: Label(NSLocalizedString("Compression Quality", comment: ""), systemImage: "wand.and.stars")
                     .foregroundColor(.green)) {
                     VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Пресет сжатия")
+                            Text(NSLocalizedString("Compression Preset", comment: ""))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                             Picker("", selection: Binding(
@@ -179,22 +180,22 @@ struct SettingsView: View {
                             )) {
                                 HStack {
                                     Image(systemName: "star.fill")
-                                    Text(NSLocalizedString("Максимальное качество", comment: ""))
+                                    Text(NSLocalizedString("Maximum Quality", comment: ""))
                                 }.tag(CompressionPreset.quality)
 
                                 HStack {
                                     Image(systemName: "circle.fill")
-                                    Text(NSLocalizedString("Оптимальный баланс", comment: ""))
+                                    Text(NSLocalizedString("Balanced", comment: ""))
                                 }.tag(CompressionPreset.balanced)
 
                                 HStack {
                                     Image(systemName: "arrow.down.circle.fill")
-                                    Text(NSLocalizedString("Максимальная экономия", comment: ""))
+                                    Text(NSLocalizedString("Maximum Savings", comment: ""))
                                 }.tag(CompressionPreset.saving)
 
                                 HStack {
                                     Image(systemName: "wand.and.stars")
-                                    Text(NSLocalizedString("Автоматически", comment: ""))
+                                    Text(NSLocalizedString("Automatic", comment: ""))
                                 }.tag(CompressionPreset.auto)
                             }
                             .pickerStyle(.radioGroup)
@@ -203,7 +204,7 @@ struct SettingsView: View {
                         Divider()
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Способ сохранения файлов")
+                            Text(NSLocalizedString("File Save Mode", comment: ""))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                             Picker("", selection: Binding(
@@ -219,17 +220,17 @@ struct SettingsView: View {
                             )) {
                                 HStack {
                                     Image(systemName: "plus.rectangle.fill")
-                                    Text(NSLocalizedString("Добавить суффикс '_compressed'", comment: ""))
+                                    Text(NSLocalizedString("Add suffix '_compressed'", comment: ""))
                                 }.tag(SaveMode.suffix)
 
                                 HStack {
                                     Image(systemName: "folder.fill")
-                                    Text(NSLocalizedString("Создать папку 'Compressor'", comment: ""))
+                                    Text(NSLocalizedString("Create 'Compressor' folder", comment: ""))
                                 }.tag(SaveMode.separateFolder)
 
                                 HStack {
                                     Image(systemName: "arrow.triangle.2.circlepath")
-                                    Text(NSLocalizedString("Перезаписать оригиналы", comment: ""))
+                                    Text(NSLocalizedString("Overwrite originals", comment: ""))
                                 }.tag(SaveMode.overwrite)
                             }
                             .pickerStyle(.radioGroup)
@@ -238,16 +239,14 @@ struct SettingsView: View {
                     .padding(12)
                 }
 
-                // 📏 РАЗМЕРЫ ИЗОБРАЖЕНИЙ
-                GroupBox(label: Label("Размеры изображений", systemImage: "rectangle.resize")
+                // 📏 IMAGE DIMENSIONS
+                GroupBox(label: Label(NSLocalizedString("Image Dimensions", comment: ""), systemImage: "rectangle.resize")
                     .foregroundColor(.purple)) {
                     VStack(alignment: .leading, spacing: 12) {
-                        // Максимальный размер
+                        // Max dimension
                         HStack {
-                            Text("Максимальный размер стороны")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Spacer()
+                            Text(NSLocalizedString("Max side dimension", comment: ""))
+                        Spacer()
                         }
 
                         HStack(spacing: 12) {
@@ -257,7 +256,7 @@ struct SettingsView: View {
                                 .multilineTextAlignment(.center)
                                 .onChange(of: maxDimText) { _ in applyMaxDimText() }
 
-                            Text("пикселей")
+                            Text(NSLocalizedString("pixels", comment: ""))
                                 .foregroundColor(.secondary)
 
                             Spacer()
@@ -266,7 +265,7 @@ struct SettingsView: View {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.green)
-                                    Text("Без ограничений")
+                                    Text(NSLocalizedString("No limits", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.green)
                                 }
@@ -274,37 +273,37 @@ struct SettingsView: View {
                                 HStack {
                                     Image(systemName: "arrow.down.right.circle.fill")
                                         .foregroundColor(.orange)
-                                    Text("Размер ограничен")
+                                    Text(NSLocalizedString("Dimension limited", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.orange)
                                 }
                             }
                         }
 
-                        Text("0 — без ограничения размера")
+                        Text(NSLocalizedString("0 — no dimension limit", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .italic()
 
                         Divider()
 
-                        // Метаданные
+                        // Metadata
                         HStack {
-                            Toggle(NSLocalizedString("Сохранять метаданные", comment: ""), isOn: $preserveMetadata)
+                            Toggle(NSLocalizedString("Preserve metadata", comment: ""), isOn: $preserveMetadata)
                                 .onChange(of: preserveMetadata) { _ in notify() }
                                 .toggleStyle(.switch)
                             Spacer()
                         }
 
                         HStack {
-                            Toggle(NSLocalizedString("Конвертировать в sRGB", comment: ""), isOn: $convertToSRGB)
+                            Toggle(NSLocalizedString("Convert to sRGB", comment: ""), isOn: $convertToSRGB)
                                 .onChange(of: convertToSRGB) { _ in notify() }
                                 .toggleStyle(.switch)
                             Spacer()
                         }
 
                         HStack {
-                            Toggle(NSLocalizedString("Оптимизировать GIF", comment: ""), isOn: $enableGifsicle)
+                            Toggle(NSLocalizedString("Optimize GIF", comment: ""), isOn: $enableGifsicle)
                                 .onChange(of: enableGifsicle) { _ in notify() }
                                 .toggleStyle(.switch)
                             Spacer()
@@ -313,20 +312,32 @@ struct SettingsView: View {
                     .padding(12)
                 }
 
-                // 📊 СТАТИСТИКА
-                GroupBox(label: Label("Статистика", systemImage: "chart.bar.fill")
+                // 📊 STATISTICS
+                GroupBox(label: Label("Statistics", systemImage: "chart.bar.fill")
                     .foregroundColor(.orange)) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(String(format: NSLocalizedString("Обработано файлов: %lld", comment: ""), StatsStore.shared.allTimeProcessedCount))
+                                Text(String(format: NSLocalizedString("Files processed: %lld", comment: ""), StatsStore.shared.allTimeProcessedCount))
                                     .font(.headline)
-                                Text(String(format: NSLocalizedString("Общая экономия: %@", comment: ""), ByteCountFormatter.string(fromByteCount: StatsStore.shared.allTimeSavedBytes, countStyle: .file)))
+                                Text(String(format: NSLocalizedString("Total saved: %@", comment: ""), ByteCountFormatter.string(fromByteCount: StatsStore.shared.allTimeSavedBytes, countStyle: .file)))
                                     .font(.subheadline)
                                     .foregroundColor(.green)
                             }
                             Spacer()
                         }
+
+                        Divider()
+
+                        HStack {
+                            Toggle(NSLocalizedString("Disable statistics", comment: ""), isOn: $disableStatistics)
+                                .toggleStyle(.switch)
+                            Spacer()
+                        }
+                        
+                        Text(NSLocalizedString("When disabled, compression data is not saved.", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
 
                         Divider()
 
@@ -337,7 +348,7 @@ struct SettingsView: View {
                             } label: {
                                 HStack {
                                     Image(systemName: "trash.fill")
-                                    Text(NSLocalizedString("Сбросить статистику", comment: ""))
+                                    Text(NSLocalizedString("Reset Statistics", comment: ""))
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
@@ -348,11 +359,11 @@ struct SettingsView: View {
                     .padding(12)
                 }
 
-                // 📁 ПОДДЕРЖИВАЕМЫЕ ФОРМАТЫ
-                GroupBox(label: Label("Поддерживаемые форматы", systemImage: "doc.badge.gearshape.fill")
+                // 📁 SUPPORTED FORMATS
+                GroupBox(label: Label(NSLocalizedString("Supported Formats", comment: ""), systemImage: "doc.badge.gearshape.fill")
                     .foregroundColor(.blue)) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Какие библиотеки используются для обработки файлов")
+                        Text(NSLocalizedString("Libraries used for file processing", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
@@ -380,7 +391,7 @@ struct SettingsView: View {
                                 icon: "camera.fill",
                                 color: .purple,
                                 processor: "ImageIO (macOS)",
-                                description: "Системный HEIF кодек",
+                                description: "System HEIF codec",
                                 hasOptions: false
                             )
 
@@ -407,12 +418,12 @@ struct SettingsView: View {
                                 icon: "doc.richtext.fill",
                                 color: .brown,
                                 processor: "ImageIO (macOS)",
-                                description: "Системный TIFF кодек с LZW",
+                                description: "System TIFF codec with LZW",
                                 hasOptions: false
                             )
                         }
 
-                        // Информация об улучшениях
+                        // Info about improvements
                         if needsModernTools() {
                             Divider()
 
@@ -420,7 +431,7 @@ struct SettingsView: View {
                                 HStack {
                                     Image(systemName: "arrow.up.circle.fill")
                                         .foregroundColor(.green)
-                                    Text("Улучшите сжатие!")
+                                    Text(NSLocalizedString("Improve compression!", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.medium)
                                     Spacer()
@@ -428,24 +439,24 @@ struct SettingsView: View {
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     if !jpegHasOptions() {
-                                        Text("• JPEG: установите MozJPEG для +35% лучшего сжатия")
+                                        Text(NSLocalizedString("• JPEG: install MozJPEG for +35% better compression", comment: ""))
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     }
                                     if !pngHasOptions() {
-                                        Text("• PNG: установите Oxipng для +20% лучшего сжатия")
+                                        Text(NSLocalizedString("• PNG: install Oxipng for +20% better compression", comment: ""))
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     }
                                     if !gifHasOptions() {
-                                        Text("• GIF: установите Giflossy для +30% лучшего сжатия")
+                                        Text(NSLocalizedString("• GIF: install Giflossy for +30% better compression", comment: ""))
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     }
                                 }
 
                                 HStack {
-                                    Text("Команда: brew install mozjpeg oxipng giflossy")
+                                    Text(NSLocalizedString("Command: brew install mozjpeg oxipng giflossy", comment: ""))
                                         .font(.caption2)
                                         .fontFamily(.monospaced)
                                         .padding(.horizontal, 8)
@@ -461,11 +472,11 @@ struct SettingsView: View {
                     .padding(12)
                 }
 
-                // 🔍 ДИАГНОСТИКА И ИНСТРУМЕНТЫ
-                GroupBox(label: Label("Инструменты", systemImage: "wrench.and.screwdriver.fill")
+                // 🔍 TOOLS & DIAGNOSTICS
+                GroupBox(label: Label(NSLocalizedString("Tools", comment: ""), systemImage: "wrench.and.screwdriver.fill")
                     .foregroundColor(.gray)) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Проверка доступности инструментов")
+                        Text(NSLocalizedString("Check tool availability", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
@@ -474,15 +485,15 @@ struct SettingsView: View {
                                 let availability = WebPEncoder().availability()
                                 var msg = ""
                                 switch availability {
-                                case .systemCodec: msg = NSLocalizedString("✅ Системный кодек WebP доступен", comment: "")
-                                case .embedded: msg = NSLocalizedString("✅ Встроенный WebP доступен", comment: "")
-                                case .unavailable: msg = NSLocalizedString("❌ WebP не доступен", comment: "")
+                                case .systemCodec: msg = NSLocalizedString("✅ System WebP codec available", comment: "")
+                                case .embedded: msg = NSLocalizedString("✅ Embedded WebP available", comment: "")
+                                case .unavailable: msg = NSLocalizedString("❌ WebP unavailable", comment: "")
                                 }
                                 showInfoAlert(title: "WebP", message: msg)
                             } label: {
                                 HStack {
                                     Image(systemName: "photo.fill")
-                                    Text("WebP")
+                                    Text(NSLocalizedString("WebP", comment: ""))
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
@@ -501,12 +512,12 @@ struct SettingsView: View {
                                 } else if fm.isExecutableFile(atPath: "/usr/local/bin/gifsicle") {
                                     found = "/usr/local/bin/gifsicle"
                                 }
-                                let msg = found.isEmpty ? NSLocalizedString("❌ gifsicle не найден", comment: "") : String(format: NSLocalizedString("✅ gifsicle: %@", comment: ""), found)
+                                let msg = found.isEmpty ? NSLocalizedString("❌ gifsicle not found", comment: "") : String(format: NSLocalizedString("✅ gifsicle: %@", comment: ""), found)
                                 showInfoAlert(title: "gifsicle", message: msg)
                             } label: {
                                 HStack {
                                     Image(systemName: "film.fill")
-                                    Text("GIF")
+                                    Text(NSLocalizedString("GIF", comment: ""))
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
@@ -518,14 +529,14 @@ struct SettingsView: View {
 
                         Divider()
 
-                        DisclosureGroup("Дополнительно") {
+                        DisclosureGroup(NSLocalizedString("Advanced", comment: "")) {
                             HStack(spacing: 12) {
                                 Button {
                                     NSWorkspace.shared.open(AppPaths.logCSVURL())
                                 } label: {
                                     HStack {
                                         Image(systemName: "doc.text.fill")
-                                        Text("CSV лог")
+                                        Text(NSLocalizedString("CSV Log", comment: ""))
                                     }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
@@ -537,7 +548,7 @@ struct SettingsView: View {
                                 } label: {
                                     HStack {
                                         Image(systemName: "folder.fill")
-                                        Text("Папка логов")
+                                        Text(NSLocalizedString("Logs Folder", comment: ""))
                                     }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
@@ -552,14 +563,14 @@ struct SettingsView: View {
             .padding(20)
         }
         .frame(width: 580, height: 520)
-        .alert(NSLocalizedString("Перезапись оригиналов", comment: ""), isPresented: $confirmOverwrite) {
-            Button(NSLocalizedString("Отмена", comment: ""), role: .cancel) {}
-            Button(NSLocalizedString("Продолжить", comment: ""), role: .destructive) {
+        .alert(NSLocalizedString("Overwrite Originals", comment: ""), isPresented: $confirmOverwrite) {
+            Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("Continue", comment: ""), role: .destructive) {
                 saveModeRaw = SaveMode.overwrite.rawValue
                 notify()
             }
         } message: {
-            Text(NSLocalizedString("Файлы будут перезаписаны без возможности восстановления. Вы уверены?", comment: ""))
+            Text(NSLocalizedString("Files will be overwritten irrecoverably. Are you sure?", comment: ""))
         }
         .onAppear {
             AppUIManager.shared.setDockIconVisible(showDockIcon)
@@ -587,16 +598,16 @@ struct SettingsView: View {
     private func resetStatsAndLogs() {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = NSLocalizedString("Сбросить статистику?", comment: "")
-        alert.informativeText = NSLocalizedString("Будут обнулены счётчики и удалён CSV лог. Действие необратимо.", comment: "")
-        alert.addButton(withTitle: NSLocalizedString("Сбросить", comment: ""))
-        alert.addButton(withTitle: NSLocalizedString("Отмена", comment: ""))
+        alert.messageText = NSLocalizedString("Reset statistics?", comment: "")
+        alert.informativeText = NSLocalizedString("Counters will be reset and CSV log deleted. This action is irreversible.", comment: "")
+        alert.addButton(withTitle: NSLocalizedString("Reset", comment: ""))
+        alert.addButton(withTitle: NSLocalizedString("Cancel", comment: ""))
         let resp = alert.runModal()
         if resp == .alertFirstButtonReturn {
             StatsStore.shared.resetAll()
             let url = AppPaths.logCSVURL()
             try? FileManager.default.removeItem(at: url)
-            _ = CSVLogger(logURL: url) // пересоздаём с заголовком
+            _ = CSVLogger(logURL: url) // recreate with header
             notify()
         }
     }
@@ -605,17 +616,17 @@ struct SettingsView: View {
         let encoder = WebPEncoder()
         switch encoder.availability() {
         case .systemCodec: return "ImageIO (macOS)"
-        case .embedded: return "libwebp (встроенная)"
-        case .unavailable: return "Недоступно"
+        case .embedded: return "libwebp (Embedded)"
+        case .unavailable: return "Unavailable"
         }
     }
 
     private func webpProcessorDescription() -> String {
         let encoder = WebPEncoder()
         switch encoder.availability() {
-        case .systemCodec: return "Системный WebP кодек"
-        case .embedded: return "Встроенная библиотека libwebp"
-        case .unavailable: return "WebP кодек не найден"
+        case .systemCodec: return "System WebP codec"
+        case .embedded: return "Embedded libwebp library"
+        case .unavailable: return "WebP codec not found"
         }
     }
 
@@ -627,10 +638,10 @@ struct SettingsView: View {
     private func gifsicleStatus() -> String {
         let modernGif = ModernGifOptimizer()
         let tools = modernGif.getAvailableTools()
-        return tools.isEmpty ? "Не найден" : tools.first ?? "Не найден"
+        return tools.isEmpty ? "Not found" : tools.first ?? "Not found"
     }
 
-    // Новые методы для современных компрессоров
+    // New methods for modern compressors
     private func jpegProcessorName() -> String {
         let mozjpeg = MozJPEGCompressor()
         return mozjpeg.isAvailable() ? "MozJPEG" : "ImageIO (macOS)"
@@ -638,7 +649,7 @@ struct SettingsView: View {
 
     private func jpegProcessorDescription() -> String {
         let mozjpeg = MozJPEGCompressor()
-        return mozjpeg.isAvailable() ? "Современный JPEG оптимизатор (+35% сжатие)" : "Системный JPEG кодек"
+        return mozjpeg.isAvailable() ? "Modern JPEG optimizer (+35% compression)" : "System JPEG codec"
     }
 
     private func pngProcessorName() -> String {
@@ -648,7 +659,7 @@ struct SettingsView: View {
 
     private func pngProcessorDescription() -> String {
         let oxipng = OxipngCompressor()
-        return oxipng.isAvailable() ? "Быстрый PNG оптимизатор (+20% сжатие)" : "Системный PNG кодек"
+        return oxipng.isAvailable() ? "Fast PNG optimizer (+20% compression)" : "System PNG codec"
     }
 
     private func jpegHasOptions() -> Bool {
@@ -669,7 +680,7 @@ struct SettingsView: View {
         } else if tools.contains(where: { $0.contains("Gifsicle") }) {
             return "Gifsicle"
         } else {
-            return "Не найден"
+            return "Not found"
         }
     }
 
@@ -677,11 +688,11 @@ struct SettingsView: View {
         let modernGif = ModernGifOptimizer()
         let tools = modernGif.getAvailableTools()
         if tools.contains(where: { $0.contains("Giflossy") }) {
-            return "Продвинутый GIF оптимизатор (+30% сжатие)"
+            return "Advanced GIF optimizer (+30% compression)"
         } else if tools.contains(where: { $0.contains("Gifsicle") }) {
-            return "Базовый GIF оптимизатор"
+            return "Basic GIF optimizer"
         } else {
-            return "Оптимизатор не найден"
+            return "Optimizer not found"
         }
     }
 
@@ -713,12 +724,12 @@ struct FormatProcessorRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Иконка формата
+            // Format icon
             Image(systemName: icon)
                 .foregroundColor(color)
                 .frame(width: 20)
 
-            // Расширения
+            // Extensions
             HStack(spacing: 4) {
                 ForEach(extensions, id: \.self) { ext in
                     Text(".\(ext.uppercased())")
@@ -732,11 +743,11 @@ struct FormatProcessorRow: View {
             }
             .frame(width: 120, alignment: .leading)
 
-            // Разделитель
+            // Separator
             Text("→")
                 .foregroundColor(.secondary)
 
-            // Информация о процессоре
+            // Processor Info
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(processor)

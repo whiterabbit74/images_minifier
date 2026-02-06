@@ -1,0 +1,171 @@
+/* UI Tabs */
+"Optimizer" = "Оптимизатор";
+"Statistics" = "Статистика";
+"Settings" = "Настройки";
+
+/* Settings Context */
+"GENERAL" = "ОБЩИЕ";
+"INTERFACE" = "ИНТЕРФЕЙС";
+"Launch at Login" = "Запускать при входе";
+"Notify on Completion" = "Уведомить о завершении";
+"Theme" = "Тема";
+"System" = "Системная";
+"Dark" = "Темная";
+"Light" = "Светлая";
+"App Icon" = "Иконка приложения";
+"Dock" = "Dock-панель";
+"Menu Bar" = "Строка меню";
+"Both" = "Везде";
+"Reset All" = "Сбросить всё";
+
+/* Sidebar / Presets */
+"PRESETS" = "ПРЕСЕТЫ";
+"Base Preset" = "Базовый пресет";
+"My Presets" = "Мои пресеты";
+"Save Preset" = "Сохранить пресет";
+"Save current configuration as:" = "Сохранить текущую конфигурацию как:";
+"My Custom Preset" = "Мой пресет";
+"Cancel" = "Отмена";
+"Save" = "Сохранить";
+"Save current settings" = "Сохранить текущие настройки";
+
+/* Sidebar / Hints */
+"Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size." = "Сбалансированный (рекомендуется) — лучшее сочетание размера и качества. Качество сохраняет детали. Экономия агрессивно уменьшает размер.";
+"Controls clarity. 80-85%% is the 'sweet spot'—visually identical to original but much smaller. Go lower (60-70%%) only if file size is critical." = "Управляет четкостью. 80-85% — золотая середина: визуально неотличимо от оригинала, но намного меньше. Используйте меньше (60-70%), только если размер критичен.";
+"How hard the CPU works to find patterns. Level 3 is fast. Level 9 tries everything to squeeze out bytes (can be very slow). No quality is lost." = "Насколько сильно процессор ищет паттерны. Уровень 3 — быстро. Уровень 9 пробует всё, чтобы выжать байты (может быть очень медленно). Качество не теряется.";
+"Modern format quality. Lower numbers (20-30) are excellent. Higher (50+) keep more noise/grain but produce larger files." = "Качество современного формата. Низкие значения (20-30) — отличные. Высокие (50+) сохраняют больше шума/зернистости, но файлы будут больше.";
+"Encoding effort (0-10). Speed 0 is painfully slow but creates the smallest files. Speed 6+ is instant. Speed 4 is a good balance." = "Усилия кодирования (0-10). Скорость 0 — мучительно медленно, но файлы минимальны. Скорость 6+ — мгновенно. Скорость 4 — отличный баланс.";
+"Lossy (Gifsicle) is magic for GIFs—it can reduce size by 70%% by slightly simplifying colors. Lossless keeps every pixel but stays huge." = "Lossy (Gifsicle) — магия для GIF: уменьшает размер на 70%, слегка упрощая цвета. Lossless сохраняет каждый пиксель, но размер остается огромным.";
+"Hover over settings for details." = "Наведите на настройки для подробностей.";
+
+/* Sidebar / Settings */
+"JPEG Quality" = "Качество JPEG";
+"PNG Safe" = "Сжатие PNG";
+"AVIF Quality" = "Качество AVIF";
+"AVIF Speed" = "Скорость AVIF";
+"GIF Mode" = "Режим GIF";
+"Lossy (Gifsicle)" = "С потерями (Gifsicle)";
+"Lossless" = "Без потерь";
+
+/* Resizing */
+"RESIZE" = "ИЗМЕНЕНИЕ РАЗМЕРА";
+"Resize Images" = "Изменять размер";
+"Target Size" = "Целевой размер";
+"Px" = "пикс";
+"Common Sizes" = "Стандартные размеры";
+"Mode" = "Режим";
+"Fit (Longest Edge)" = "По длинной стороне";
+"Width" = "По ширине";
+"Height" = "По высоте";
+"Shrink images to a specific size before compressing. Great for web or thumbnails." = "Уменьшает изображения до нужного размера перед сжатием. Отлично подходит для веба или миниатюр.";
+"Choose a standard size or enter a custom value." = "Выберите стандартный размер или введите свое значение.";
+"'Fit' keeps the aspect ratio within the box. 'Width'/'Height' enforce that dimension." = "«По стороне» сохраняет пропорции. «Ширина»/«Высота» задают конкретный размер.";
+
+/* Workflow */
+"WORKFLOW" = "ПРОЦЕСС";
+"Direct Save" = "Прямое сохранение";
+"Keep Metadata" = "Сохранять метаданные";
+"Convert to sRGB" = "Конвертировать в sRGB";
+"Start compressing files immediately after dropping them. Disable to review list first." = "Начинать сжатие сразу после добавления файлов. Выключите, чтобы сначала проверить список.";
+"Preserve EXIF, GPS, and creation dates. Increases file size slightly. Turn off for maximum privacy/saving." = "Сохраняет EXIF, GPS и дату создания. Немного увеличивает размер. Выключите для максимальной приватности и экономии.";
+"Standardizes color profile for maximum web compatibility. Fixes 'washed out' colors in some browsers." = "Стандартизирует профиль для веб-совместимости. Исправляет «выцветшие» цвета в некоторых браузерах.";
+
+/* Output */
+"OUTPUT" = "ВЫХОД";
+"Where files go: 'Suffix' adds _min to name (safest). 'Separate Folder' keeps them organized. 'Overwrite' replaces originals (Dangerous!)." = "Куда сохранять: «Суффикс» добавляет _min (безопасно). «Отдельная папка» — для порядка. «Перезаписать» — заменяет оригинал (Опасно!).";
+"Warning: Original files will be replaced and cannot be recovered." = "Внимание: Оригинальные файлы будут заменены и не смогут быть восстановлены.";
+
+/* Optimizer / Main View */
+"Drag files here to start batch" = "Перетащите файлы сюда для начала";
+"Supports nested folders" = "Поддерживается вложенность папок";
+"Toggle Theme" = "Сменить тему";
+"Start" = "Старт";
+"Optimizing..." = "Оптимизация...";
+"Done with Errors" = "Завершено с ошибками";
+"Complete!" = "Готово!";
+
+/* Results Table */
+"File" = "Файл";
+"Original" = "Оригинал";
+"Optimized" = "Сжатый";
+"Savings" = "Экономия";
+"Status" = "Статус";
+"Clear List" = "Очистить список";
+"Saved" = "Сэкономлено";
+"Pending" = "В очереди";
+"Processing" = "Обработка";
+"Done" = "Готово";
+"Error" = "Ошибка";
+"Skipped" = "Пропущено";
+"Skip" = "Пропуск";
+"%d Files processed successfully" = "Файлов успешно обработано: %d";
+
+/* Statistics */
+"Real-time compression metrics" = "Метрики сжатия в реальном времени";
+"CURRENT SESSION" = "ТЕКУЩАЯ СЕССИЯ";
+"Session Files" = "Файлы сессии";
+"Session Saved" = "Сэкономлено (сессия)";
+"LIFETIME TOTALS" = "ИТОГИ ЗА ВСЁ ВРЕМЯ";
+"Total Files" = "Всего файлов";
+"Total Saved" = "Всего сэкономлено";
+"TOTAL SPACE SAVED" = "ВСЕГО СЭКОНОМЛЕНО МЕСТА";
+"AVERAGE REDUCTION" = "СРЕДНЕЕ СЖАТИЕ";
+"in last session" = "за посл. сессию";
+"TOTAL FILES PROCESSED: %d" = "ВСЕГО ОБРАБОТАНО ФАЙЛОВ: %d";
+"SAVINGS BY FORMAT" = "ЭКОНОМИЯ ПО ФОРМАТАМ";
+"OTHER" = "ПРОЧЕЕ";
+"Statistics Disabled" = "Статистика отключена";
+"Enable statistics in settings to track your savings." = "Включите статистику в настройках, чтобы отслеживать результаты.";
+"Session and lifetime performance metrics" = "Метрики за сессию и все время";
+"Disable statistics" = "Не считать статистику";
+"When disabled, compression data is not saved." = "Если отключено, данные о сжатии не сохраняются.";
+
+/* Additional Settings keys */
+"Appearance" = "Appearance";
+"Appearance Mode" = "Appearance Mode";
+"System Default" = "System Default";
+"Interface Mode" = "Interface Mode";
+"Show only with savings" = "Show only with savings";
+"Compression Quality" = "Compression Quality";
+"Compression Preset" = "Compression Preset";
+"Maximum Quality" = "Maximum Quality";
+"Balanced" = "Balanced";
+"Maximum Savings" = "Maximum Savings";
+"Automatic" = "Automatic";
+"File Save Mode" = "File Save Mode";
+"Add suffix '_compressed'" = "Add suffix '_compressed'";
+"Create 'Compressor' folder" = "Create 'Compressor' folder";
+"Overwrite originals" = "Overwrite originals";
+"Image Dimensions" = "Image Dimensions";
+"Max side dimension" = "Max side dimension";
+"pixels" = "pixels";
+"No limits" = "No limits";
+"Dimension limited" = "Dimension limited";
+"0 — no dimension limit" = "0 — no dimension limit";
+"Preserve metadata" = "Preserve metadata";
+"Optimize GIF" = "Optimize GIF";
+"Files processed: %lld" = "Files processed: %lld";
+"Total saved: %@" = "Total saved: %@";
+"Reset Statistics" = "Reset Statistics";
+"Supported Formats" = "Supported Formats";
+"Libraries used for file processing" = "Libraries used for file processing";
+"Improve compression!" = "Improve compression!";
+"• JPEG: install MozJPEG for +35% better compression" = "• JPEG: install MozJPEG for +35% better compression";
+"• PNG: install Oxipng for +20% better compression" = "• PNG: install Oxipng for +20% better compression";
+"• GIF: install Giflossy for +30% better compression" = "• GIF: install Giflossy for +30% better compression";
+"Command: brew install mozjpeg oxipng giflossy" = "Command: brew install mozjpeg oxipng giflossy";
+"Tools" = "Tools";
+"Check tool availability" = "Check tool availability";
+"✅ System WebP codec available" = "✅ System WebP codec available";
+"✅ Embedded WebP available" = "✅ Embedded WebP available";
+"❌ WebP unavailable" = "❌ WebP unavailable";
+"❌ gifsicle not found" = "❌ gifsicle not found";
+"✅ gifsicle: %@" = "✅ gifsicle: %@";
+"Advanced" = "Advanced";
+"CSV Log" = "CSV Log";
+"Logs Folder" = "Logs Folder";
+"Overwrite Originals" = "Overwrite Originals";
+"Files will be overwritten irrecoverably. Are you sure?" = "Files will be overwritten irrecoverably. Are you sure?";
+"Reset statistics?" = "Reset statistics?";
+"Counters will be reset and CSV log deleted. This action is irreversible." = "Counters will be reset and CSV log deleted. This action is irreversible.";
+"Reset" = "Reset";

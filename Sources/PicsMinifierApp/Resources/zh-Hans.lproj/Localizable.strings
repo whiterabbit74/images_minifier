@@ -1,0 +1,160 @@
+/* UI Tabs */
+"Optimizer" = "优化器";
+"Statistics" = "统计";
+"Settings" = "设置";
+
+/* Settings Context */
+"GENERAL" = "常规";
+"INTERFACE" = "界面";
+"Launch at Login" = "登录时启动";
+"Notify on Completion" = "完成时通知";
+"Theme" = "主题";
+"System" = "系统";
+"Dark" = "深色";
+"Light" = "浅色";
+"App Icon" = "应用图标";
+"Dock" = "Dock 栏";
+"Menu Bar" = "菜单栏";
+"Both" = "两者";
+"Reset All" = "重置所有";
+
+/* Sidebar / Presets */
+"PRESETS" = "预设";
+"Base Preset" = "基础预设";
+"My Presets" = "我的预设";
+"Save Preset" = "保存预设";
+"Save current configuration as:" = "将当前配置保存为：";
+"My Custom Preset" = "我的自定义预设";
+"Cancel" = "取消";
+"Save" = "保存";
+"Save current settings" = "保存当前设置";
+
+/* Sidebar / Hints */
+"Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size." = "“平衡（推荐）”是大小和质量的最佳平衡。“质量”优先保证细节。“节约”会大幅减小体积。";
+"Controls clarity. 80-85%% is the 'sweet spot'—visually identical to original but much smaller. Go lower (60-70%%) only if file size is critical." = "控制清晰度。80-85% 是“黄金比例”——视觉上与原图一致，但体积小得多。仅在对大小有极端要求时才调低至 60-70%。";
+"How hard the CPU works to find patterns. Level 3 is fast. Level 9 tries everything to squeeze out bytes (can be very slow). No quality is lost." = "CPU 寻找模式的强度。等级 3 速度快。等级 9 会尝试一切手段压缩字节（可能非常慢）。不会损失质量。";
+"Modern format quality. Lower numbers (20-30) are excellent. Higher (50+) keep more noise/grain but produce larger files." = "现代格式的质量。数值越低（20-30）效果越好。数值越高（50+）保留的噪点/颗粒越多，但文件也越大。";
+"Encoding effort (0-10). Speed 0 is painfully slow but creates the smallest files. Speed 6+ is instant. Speed 4 is a good balance." = "编码强度 (0-10)。速度 0 慢得离谱，但产生的体积最小。速度 6+ 则非常迅速。速度 4 是个不错的平衡。";
+"Lossy (Gifsicle) is magic for GIFs—it can reduce size by 70%% by slightly simplifying colors. Lossless keeps every pixel but stays huge." = "有损 (Gifsicle) 对 GIF 来说非常神奇——通过适度简化色彩可减小 70% 的体积。无损会保留所有像素，但体积依然巨大。";
+"Hover over settings for details." = "将鼠标悬停在设置上查看详情。";
+
+/* Sidebar / Settings */
+"JPEG Quality" = "JPEG 质量";
+"PNG Safe" = "PNG 安全";
+"AVIF Quality" = "AVIF 质量";
+"AVIF Speed" = "AVIF 速度";
+"GIF Mode" = "GIF 模式";
+"Lossy (Gifsicle)" = "有损 (Gifsicle)";
+"Lossless" = "无损";
+
+/* Resizing */
+"RESIZE" = "调整大小";
+"Resize Images" = "调整图像大小";
+"Target Size" = "目标大小";
+"Px" = "像素";
+"Common Sizes" = "常用大小";
+"Mode" = "模式";
+"Fit (Longest Edge)" = "适应（最长边）";
+"Width" = "宽度";
+"Height" = "高度";
+"Shrink images to a specific size before compressing. Great for web or thumbnails." = "在压缩之前将图像缩小到特定大小。非常适合网页或缩略图。";
+"Choose a standard size or enter a custom value." = "选择标准大小或输入自定义值。";
+"Fit keeps the aspect ratio within the box. Width/Height enforce that dimension." = "“适应”会保持长宽比。“宽度/高度”则会强制执行该维度。";
+
+/* Workflow */
+"WORKFLOW" = "工作流";
+"Direct Save" = "直接保存";
+"Keep Metadata" = "保留元数据";
+"Convert to sRGB" = "转换为 sRGB";
+"Start compressing files immediately after dropping them. Disable to review list first." = "拖入文件后立即开始压缩。禁用此项可先预览列表。";
+"Preserve EXIF, GPS, and creation dates. Increases file size slightly. Turn off for maximum privacy/saving." = "保留 EXIF、GPS 和创建日期。会稍微增加文件体积。关闭此项可获得最大隐私和节省空间。";
+"Standardizes color profile for maximum web compatibility. Fixes 'washed out' colors in some browsers." = "标准化颜色配置文件，实现最佳网页兼容性。修复在某些浏览器中颜色“发白”的问题。";
+
+/* Output */
+"OUTPUT" = "输出";
+"Where files go: 'Suffix' adds _min to name (safest). 'Separate Folder' keeps them organized. 'Overwrite' replaces originals (Dangerous!)." = "文件保存位置：“后缀”会在名称后添加 _min（最安全）。“独立文件夹”则分类保存。 “覆盖”会替换原图（危险！）。";
+"Warning: Original files will be replaced and cannot be recovered." = "警告：原始文件将被替换且无法恢复。";
+
+/* Optimizer / Main View */
+"Drag files here to start batch" = "拖入文件以开始批量处理";
+"Supports nested folders" = "支持嵌套文件夹";
+"Toggle Theme" = "切换主题";
+"Start" = "开始";
+"Optimizing..." = "优化中...";
+"Done with Errors" = "完成（有错误）";
+"Complete!" = "完成！";
+
+/* Results Table */
+"File" = "文件";
+"Original" = "原图";
+"Optimized" = "已优化";
+"Savings" = "节省空间";
+"Status" = "状态";
+"Clear List" = "清除列表";
+"Saved" = "已节省";
+"Pending" = "等待中";
+"Processing" = "处理中";
+"Done" = "完成";
+"Error" = "错误";
+"Skipped" = "已跳过";
+"Skip" = "跳过";
+"%d Files processed successfully" = "成功处理 %d 个文件";
+
+/* Statistics */
+"Real-time compression metrics" = "实时压缩指标";
+"CURRENT SESSION" = "当前会话";
+"Session Files" = "本会话文件";
+"Session Saved" = "本会话节省";
+"LIFETIME TOTALS" = "累计总量";
+"Total Files" = "总文件数";
+"Total Saved" = "总节省空间";
+
+/* Additional Settings keys */
+"Appearance" = "Appearance";
+"Appearance Mode" = "Appearance Mode";
+"System Default" = "System Default";
+"Interface Mode" = "Interface Mode";
+"Show only with savings" = "Show only with savings";
+"Compression Quality" = "Compression Quality";
+"Compression Preset" = "Compression Preset";
+"Maximum Quality" = "Maximum Quality";
+"Balanced" = "Balanced";
+"Maximum Savings" = "Maximum Savings";
+"Automatic" = "Automatic";
+"File Save Mode" = "File Save Mode";
+"Add suffix '_compressed'" = "Add suffix '_compressed'";
+"Create 'Compressor' folder" = "Create 'Compressor' folder";
+"Overwrite originals" = "Overwrite originals";
+"Image Dimensions" = "Image Dimensions";
+"Max side dimension" = "Max side dimension";
+"pixels" = "pixels";
+"No limits" = "No limits";
+"Dimension limited" = "Dimension limited";
+"0 — no dimension limit" = "0 — no dimension limit";
+"Preserve metadata" = "Preserve metadata";
+"Optimize GIF" = "Optimize GIF";
+"Files processed: %lld" = "Files processed: %lld";
+"Total saved: %@" = "Total saved: %@";
+"Reset Statistics" = "Reset Statistics";
+"Supported Formats" = "Supported Formats";
+"Libraries used for file processing" = "Libraries used for file processing";
+"Improve compression!" = "Improve compression!";
+"• JPEG: install MozJPEG for +35% better compression" = "• JPEG: install MozJPEG for +35% better compression";
+"• PNG: install Oxipng for +20% better compression" = "• PNG: install Oxipng for +20% better compression";
+"• GIF: install Giflossy for +30% better compression" = "• GIF: install Giflossy for +30% better compression";
+"Command: brew install mozjpeg oxipng giflossy" = "Command: brew install mozjpeg oxipng giflossy";
+"Tools" = "Tools";
+"Check tool availability" = "Check tool availability";
+"✅ System WebP codec available" = "✅ System WebP codec available";
+"✅ Embedded WebP available" = "✅ Embedded WebP available";
+"❌ WebP unavailable" = "❌ WebP unavailable";
+"❌ gifsicle not found" = "❌ gifsicle not found";
+"✅ gifsicle: %@" = "✅ gifsicle: %@";
+"Advanced" = "Advanced";
+"CSV Log" = "CSV Log";
+"Logs Folder" = "Logs Folder";
+"Overwrite Originals" = "Overwrite Originals";
+"Files will be overwritten irrecoverably. Are you sure?" = "Files will be overwritten irrecoverably. Are you sure?";
+"Reset statistics?" = "Reset statistics?";
+"Counters will be reset and CSV log deleted. This action is irreversible." = "Counters will be reset and CSV log deleted. This action is irreversible.";
+"Reset" = "Reset";
