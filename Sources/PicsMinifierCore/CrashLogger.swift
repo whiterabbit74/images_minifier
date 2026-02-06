@@ -27,6 +27,8 @@ public final class CrashLogger {
         }
     }
 
+    private let ioQueue = DispatchQueue(label: "com.picsminifier.crashlogger.io", qos: .utility)
+
     /// Логирует ошибку в файл и системный лог
     public func logError(_ error: Error, context: String = "") {
         let timestamp = DateFormatter.logFormatter.string(from: Date())
@@ -67,21 +69,28 @@ public final class CrashLogger {
         let logMessage = "[\(timestamp)] CRITICAL in \(context): \(message)"
 
         logger.critical("\(logMessage)")
-        appendToFile(logMessage)
-
-        // Принудительно синхронизируем запись
-        try? FileManager.default.contents(atPath: logFileURL.path)?.write(to: logFileURL)
+        
+        // Critical logs should block to ensure write before crash
+        ioQueue.sync {
+            self.writeToDisk(logMessage)
+        }
     }
 
     private func appendToFile(_ message: String) {
+        ioQueue.async {
+            self.writeToDisk(message)
+        }
+    }
+    
+    private func writeToDisk(_ message: String) {
         guard let data = (message + "\n").data(using: .utf8) else { return }
 
         if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
-            fileHandle.seekToEndOfFile()
-            fileHandle.write(data)
-            fileHandle.closeFile()
+             defer { try? fileHandle.close() }
+             _ = try? fileHandle.seekToEnd()
+             _ = try? fileHandle.write(contentsOf: data)
         } else {
-            try? data.write(to: logFileURL)
+             try? data.write(to: logFileURL)
         }
     }
 

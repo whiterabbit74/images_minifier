@@ -34,6 +34,9 @@ let package = Package(
 			path: "Sources/PicsMinifierApp",
 			exclude: [
 				"SettingsView.swift"
+			],
+			resources: [
+				.process("Resources")
 			]
 		),
 		.testTarget(

@@ -4,7 +4,6 @@ public enum CompressionPreset: String, CaseIterable, Codable {
 	case quality
 	case balanced
 	case saving
-	case auto
 	case custom
 }
 
@@ -27,6 +26,7 @@ public struct AppSettings: Codable, Equatable {
 	public var convertToSRGB: Bool = false
 	public var enableGifsicle: Bool = true
 	public var maxDimension: Int? = nil
+	public var enableGifLossy: Bool = false
 
     // Advanced Custom Settings
     public var customJpegQuality: Double = 0.82

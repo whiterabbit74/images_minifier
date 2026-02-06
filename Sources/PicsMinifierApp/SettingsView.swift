@@ -25,6 +25,33 @@ struct SettingsView: View {
         return f
     }()
 
+
+
+    private var interfaceMode: InterfaceMode {
+        if showDockIcon && showMenuBarIcon { return .both }
+        if showDockIcon { return .dock }
+        return .menuBar // Default fallback if dock is off
+    }
+
+    private func setInterfaceMode(_ mode: InterfaceMode) {
+        switch mode {
+        case .dock:
+            showDockIcon = true
+            showMenuBarIcon = false
+        case .both:
+            showDockIcon = true
+            showMenuBarIcon = true
+        case .menuBar:
+            showDockIcon = false
+            showMenuBarIcon = true
+        }
+        
+        // Apply changes immediately
+        AppUIManager.shared.setDockIconVisible(showDockIcon)
+        AppUIManager.shared.setMenuBarIconVisible(showMenuBarIcon)
+        notify()
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -76,25 +103,55 @@ struct SettingsView: View {
 
                         Divider()
 
-                        // Иконки
-                        HStack {
-                            Toggle(NSLocalizedString("Иконка в Dock", comment: ""), isOn: $showDockIcon)
-                                .onChange(of: showDockIcon) { v in
-                                    AppUIManager.shared.setDockIconVisible(v)
-                                    notify()
-                                }
-                                .toggleStyle(.switch)
-                            Spacer()
-                        }
+                        // Режим отображения (Interface Mode)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Режим интерфейса")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
 
-                        HStack {
-                            Toggle(NSLocalizedString("Иконка в меню-баре", comment: ""), isOn: $showMenuBarIcon)
-                                .onChange(of: showMenuBarIcon) { v in
-                                    AppUIManager.shared.setMenuBarIconVisible(v)
-                                    notify()
+                            HStack(spacing: 0) {
+                                // Dock Only
+                                InterfaceModeButton(
+                                    mode: .dock,
+                                    current: interfaceMode,
+                                    icon: "dock.rectangle",
+                                    title: "Dock"
+                                ) {
+                                    setInterfaceMode(.dock)
                                 }
-                                .toggleStyle(.switch)
-                            Spacer()
+
+                                Divider()
+                                    .frame(height: 40)
+
+                                // Both
+                                InterfaceModeButton(
+                                    mode: .both,
+                                    current: interfaceMode,
+                                    icon: "macwindow.on.rectangle",
+                                    title: "Везде"
+                                ) {
+                                    setInterfaceMode(.both)
+                                }
+
+                                Divider()
+                                    .frame(height: 40)
+
+                                // Menu Bar Only
+                                InterfaceModeButton(
+                                    mode: .menuBar,
+                                    current: interfaceMode,
+                                    icon: "menubar.rectangle",
+                                    title: "Menu Bar"
+                                ) {
+                                    setInterfaceMode(.menuBar)
+                                }
+                            }
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                            )
                         }
 
                         // Показывать только с экономией

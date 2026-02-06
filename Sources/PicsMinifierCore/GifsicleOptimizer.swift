@@ -6,7 +6,7 @@ import Darwin
 public final class GifsicleOptimizer {
 	public init() {}
 
-	public func optimize(inputURL: URL, outputURL: URL) -> ProcessResult {
+	public func optimize(inputURL: URL, outputURL: URL, lossy: Bool = false) -> ProcessResult {
 		let fm = FileManager.default
 		let originalSize = (try? fm.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
 		let sourceFormat = inputURL.pathExtension.lowercased()
@@ -18,6 +18,9 @@ public final class GifsicleOptimizer {
 		let process = Process()
 		process.executableURL = tool
 		var args = ["--optimize=3"]
+        if lossy {
+            args.append("--lossy=80")
+        }
 		// Если перезаписываем тот же файл — пишем во временный, затем заменяем
 		let overwriteSamePath = (inputURL.path == outputURL.path)
 		let finalOutputURL: URL

@@ -207,6 +207,7 @@ public final class SecurityUtils {
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
 
+        // Helper to read data (blocking I/O, so strictly run in detached task)
         @Sendable func captureOutput(from handle: FileHandle, limit: Int) -> Data {
             var buffer = Data()
             let chunkSize = 4096
@@ -226,28 +227,16 @@ public final class SecurityUtils {
                     }
                 }
             }
-
             return buffer
         }
 
-        var stdoutData = Data()
-        var stderrData = Data()
-        let captureGroup = DispatchGroup()
-        let stdoutStorageQueue = DispatchQueue(label: "com.picsminifier.stdout")
-        let stderrStorageQueue = DispatchQueue(label: "com.picsminifier.stderr")
-
-        captureGroup.enter()
-        DispatchQueue.global(qos: .utility).async {
-            let data = captureOutput(from: stdoutHandle, limit: maxOutputSize)
-            stdoutStorageQueue.sync { stdoutData = data }
-            captureGroup.leave()
+        // Use detached tasks to read from pipes without blocking the current actor
+        let stdoutTask = Task.detached {
+            return captureOutput(from: stdoutHandle, limit: maxOutputSize)
         }
-
-        captureGroup.enter()
-        DispatchQueue.global(qos: .utility).async {
-            let data = captureOutput(from: stderrHandle, limit: maxOutputSize)
-            stderrStorageQueue.sync { stderrData = data }
-            captureGroup.leave()
+        
+        let stderrTask = Task.detached {
+            return captureOutput(from: stderrHandle, limit: maxOutputSize)
         }
 
         // Implement timeout
@@ -277,11 +266,14 @@ public final class SecurityUtils {
             process.terminate()
             stdoutHandle.closeFile()
             stderrHandle.closeFile()
-            captureGroup.wait()
+            // We can ignore the pending reads as we are throwing
             throw error
         }
 
-        captureGroup.wait()
+        // process has exited, pipes should reach EOF
+        let stdoutData = await stdoutTask.value
+        let stderrData = await stderrTask.value
+        
         stdoutHandle.closeFile()
         stderrHandle.closeFile()
 

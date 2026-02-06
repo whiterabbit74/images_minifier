@@ -11,6 +11,7 @@ public final class SmartCompressor {
 
     // Use centralized configuration for tool discovery
     private var mozjpegPath: String? { ConfigurationManager.shared.locateTool("cjpeg")?.path }
+    private var cjpegliPath: String? { ConfigurationManager.shared.locateTool("cjpegli")?.path }
     private var oxipngPath: String? { ConfigurationManager.shared.locateTool("oxipng")?.path }
     private var gifsiclePath: String? { ConfigurationManager.shared.locateTool("gifsicle")?.path }
     private var avifencPath: String? { ConfigurationManager.shared.locateTool("avifenc")?.path }
@@ -249,7 +250,11 @@ public final class SmartCompressor {
             )
         }
 
-        guard let toolPath = mozjpegPath else {
+        // Prefer cjpegli if available, otherwise fallback to mozjpeg
+        let activeToolPath = cjpegliPath ?? mozjpegPath
+        let isJpegli = (activeToolPath == cjpegliPath && cjpegliPath != nil)
+        
+        guard let toolPath = activeToolPath else {
             return legacyService.compressFile(at: inputURL, settings: settings)
         }
 
@@ -267,13 +272,24 @@ public final class SmartCompressor {
             try? fileManager.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         }
 
-        let arguments = [
-            "-quality", "\(qualityValue)",
-            "-optimize",
-            "-progressive",
-            "-outfile", destinationURL.path,
-            inputURL.path
-        ]
+        var arguments: [String] = []
+        if isJpegli {
+             // Jpegli arguments (similar to cjpeg but optimized defaults)
+             arguments = [
+                "--quality", "\(qualityValue)",
+                inputURL.path,
+                destinationURL.path
+             ]
+        } else {
+            // MozJPEG arguments
+            arguments = [
+                "-quality", "\(qualityValue)",
+                "-optimize",
+                "-progressive",
+                "-outfile", destinationURL.path,
+                inputURL.path
+            ]
+        }
 
         do {
             let result = try await SecurityUtils.executeSecureProcess(
@@ -346,7 +362,7 @@ public final class SmartCompressor {
                     originalSizeBytes: originalSize,
                     newSizeBytes: producedSize,
                     status: "success",
-                    reason: "mozjpeg-compression"
+                    reason: isJpegli ? "jpegli-compression" : "mozjpeg-compression"
                 )
             }
         } catch {
@@ -529,11 +545,16 @@ public final class SmartCompressor {
 
         try? fm.createDirectory(at: tempOutputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
-        let arguments = [
-            "--optimize=\(level)",
+        var arguments = [
+            "--optimize=\(level)"
+        ]
+        if settings.enableGifLossy {
+            arguments.append("--lossy=80")
+        }
+        arguments.append(contentsOf: [
             "--output", tempOutputURL.path,
             inputURL.path
-        ]
+        ])
 
         do {
             let result = try await SecurityUtils.executeSecureProcess(
@@ -663,7 +684,6 @@ public final class SmartCompressor {
         case .quality: return 0.92
         case .balanced: return 0.82
         case .saving: return 0.72
-        case .auto: return 0.82
         }
     }
 
@@ -673,7 +693,6 @@ public final class SmartCompressor {
         case .quality: return 2
         case .balanced: return 3
         case .saving: return 6
-        case .auto: return 3
         }
     }
 
@@ -683,7 +702,6 @@ public final class SmartCompressor {
         case .quality: return 18
         case .balanced: return 28
         case .saving: return 38
-        case .auto: return 28
         }
     }
 
@@ -693,7 +711,6 @@ public final class SmartCompressor {
         case .quality: return 3
         case .balanced: return 4
         case .saving: return 5
-        case .auto: return 4
         }
     }
 }

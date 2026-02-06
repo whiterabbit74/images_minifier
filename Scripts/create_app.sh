@@ -149,10 +149,12 @@ fi
 
 if [ -f "$APP_ICONS_DIR/menu_bar_icon.pdf" ]; then
     cp "$APP_ICONS_DIR/menu_bar_icon.pdf" "$APP_BUNDLE/Contents/Resources/compression_icon.pdf"
+elif [ -f "$APP_ICONS_DIR/menu_bar_icon.png" ]; then
+    cp "$APP_ICONS_DIR/menu_bar_icon.png" "$APP_BUNDLE/Contents/Resources/menu_bar_icon.png"
 elif [ -f "$APP_ICONS_DIR/compression_icon.pdf" ]; then
     cp "$APP_ICONS_DIR/compression_icon.pdf" "$APP_BUNDLE/Contents/Resources/"
 else
-    echo "⚠️ Menu bar PDF icon not found"
+    echo "⚠️ Menu bar icon not found"
 fi
 
 echo "🔧 Copying bundled tools..."

@@ -84,7 +84,7 @@ public final class CompressionService {
 			if settings.enableGifsicle {
 				let optimizer = GifsicleOptimizer()
 				let out = (settings.saveMode == .overwrite) ? inputURL : outputURL
-				result = optimizer.optimize(inputURL: inputURL, outputURL: out)
+				result = optimizer.optimize(inputURL: inputURL, outputURL: out, lossy: settings.enableGifLossy)
 			} else {
 				result = ProcessResult(
 					sourceFormat: sourceFormat,
@@ -133,7 +133,6 @@ public final class CompressionService {
 		case .quality: return 0.92
 		case .balanced: return 0.85
 		case .saving: return 0.75
-		case .auto: return 0.85
 		}
 	}
 
@@ -344,7 +343,6 @@ public final class CompressionService {
 		case .quality: return 90
 		case .balanced: return 80
 		case .saving: return 70
-		case .auto: return 80
 		}
 	}
 

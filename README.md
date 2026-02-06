@@ -50,11 +50,11 @@
 git clone https://github.com/whiterabbit74/images_minifier.git
 cd images_minifier
 
-# Build the application
-swift build --configuration release
+# Build the application (always use this script for a fresh build)
+./build_app.sh
 
 # Run the application
-./.build/release/PicsMinifierApp
+./PicsMinifierApp
 ```
 
 ### Optional: Install Modern Compression Tools
@@ -134,7 +134,9 @@ graph TD
 
 ### Helper Scripts
 
-- `Scripts/build.sh` – builds the project in release configuration.
+### Helper Scripts
+
+- `build_app.sh` – **Primary build script**. Cleans cache and builds release binary to root.
 - `Scripts/create_app.sh` – assembles a distributable `.app` bundle with bundled assets.
 - `Scripts/create_icons.sh` – regenerates the asset catalog from `Resources/AppIcons/icons.icns`.
 - `Scripts/manual/test_smart_compression.swift` – optional macOS-only sanity check for external compression tools.

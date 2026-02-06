@@ -31,9 +31,9 @@ This codebase has been comprehensively analyzed and fixed for **114 critical iss
 swift build
 ```
 
-### Release Build
+### Release Build (Recommended)
 ```bash
-swift build --configuration release
+./build_app.sh
 ```
 
 ### Running the Application

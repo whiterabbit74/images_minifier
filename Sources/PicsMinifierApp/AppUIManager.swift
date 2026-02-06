@@ -14,34 +14,55 @@ final class AppUIManager {
 		print("✅ applyAppIcons() called successfully")
 	}
 
-	private func loadMenuBarImage() -> NSImage? {
-		let bundle = Bundle.main
+	private var cachedMenuBarImage: NSImage?
+    
+    private func loadMenuBarImage() -> NSImage? {
+        if let cached = cachedMenuBarImage { return cached }
+        
+        let bundle = Bundle.main
 
-		// Try to load app icon sizes for menu bar - start with smaller sizes
-		let iconSizes = ["32", "16", "64", "128"]
+        // Priority 1: Check for vector PDF icon (copied as compression_icon.pdf)
+        if let imgURL = bundle.url(forResource: "compression_icon", withExtension: "pdf"),
+           let image = NSImage(contentsOf: imgURL) {
+            cachedMenuBarImage = image
+            return image
+        }
+        
+        // Priority 2: Check for specific menu bar icon (PNG)
+        if let imgURL = bundle.url(forResource: "menu_bar_icon", withExtension: "png"),
+           let image = NSImage(contentsOf: imgURL) {
+            cachedMenuBarImage = image
+            return image
+        }
 
-		for size in iconSizes {
-			if let imgURL = bundle.url(forResource: size, withExtension: "png", subdirectory: "Assets.xcassets/AppIcon.appiconset"),
-			   let image = NSImage(contentsOf: imgURL) {
-				return image
-			}
-		}
+        // Try to load app icon sizes for menu bar - start with smaller sizes
+        let iconSizes = ["32", "16", "64", "128"]
 
-		// Fallback: try to load from Resources directory
-		for size in iconSizes {
-			if let imgURL = bundle.url(forResource: size, withExtension: "png"),
-			   let image = NSImage(contentsOf: imgURL) {
-				return image
-			}
-		}
+        for size in iconSizes {
+            if let imgURL = bundle.url(forResource: size, withExtension: "png", subdirectory: "Assets.xcassets/AppIcon.appiconset"),
+               let image = NSImage(contentsOf: imgURL) {
+                cachedMenuBarImage = image
+                return image
+            }
+        }
 
-		// Last fallback: try to get app icon
-		if let appIcon = NSApp.applicationIconImage {
-			return appIcon
-		}
+        // Fallback: try to load from Resources directory
+        for size in iconSizes {
+            if let imgURL = bundle.url(forResource: size, withExtension: "png"),
+               let image = NSImage(contentsOf: imgURL) {
+                cachedMenuBarImage = image
+                return image
+            }
+        }
 
-		return nil
-	}
+        // Last fallback: try to get app icon
+        if let appIcon = NSApp.applicationIconImage {
+            cachedMenuBarImage = appIcon
+            return appIcon
+        }
+
+        return nil
+    }
 
 	private var windowWasVisibleBeforeAccessory = false
 

@@ -27,6 +27,7 @@ public final class ConfigurationManager {
     private let toolPaths: [Platform: [String: [String]]] = [
         .macOSAppleSilicon: [
             "cjpeg": ["/opt/homebrew/opt/mozjpeg/bin/cjpeg", "/opt/homebrew/bin/cjpeg", "/usr/local/bin/cjpeg"],
+            "cjpegli": ["/opt/homebrew/bin/cjpegli", "/usr/local/bin/cjpegli", "/usr/bin/cjpegli"],
             "oxipng": ["/opt/homebrew/bin/oxipng", "/usr/local/bin/oxipng", "/usr/bin/oxipng"],
             "cwebp": ["/opt/homebrew/bin/cwebp", "/usr/local/bin/cwebp", "/usr/bin/cwebp"],
             "gifsicle": ["/opt/homebrew/bin/gifsicle", "/usr/local/bin/gifsicle", "/usr/bin/gifsicle"],
@@ -34,6 +35,7 @@ public final class ConfigurationManager {
         ],
         .macOSIntel: [
             "cjpeg": ["/usr/local/opt/mozjpeg/bin/cjpeg", "/usr/local/bin/cjpeg", "/opt/homebrew/bin/cjpeg"],
+            "cjpegli": ["/usr/local/bin/cjpegli", "/opt/homebrew/bin/cjpegli", "/usr/bin/cjpegli"],
             "oxipng": ["/usr/local/bin/oxipng", "/opt/homebrew/bin/oxipng", "/usr/bin/oxipng"],
             "cwebp": ["/usr/local/bin/cwebp", "/opt/homebrew/bin/cwebp", "/usr/bin/cwebp"],
             "gifsicle": ["/usr/local/bin/gifsicle", "/opt/homebrew/bin/gifsicle", "/usr/bin/gifsicle"],
@@ -41,6 +43,7 @@ public final class ConfigurationManager {
         ],
         .unknown: [
             "cjpeg": ["/usr/bin/cjpeg", "/usr/local/bin/cjpeg"],
+            "cjpegli": ["/usr/bin/cjpegli", "/usr/local/bin/cjpegli"],
             "oxipng": ["/usr/bin/oxipng", "/usr/local/bin/oxipng"],
             "cwebp": ["/usr/bin/cwebp", "/usr/local/bin/cwebp"],
             "gifsicle": ["/usr/bin/gifsicle", "/usr/local/bin/gifsicle"],
@@ -132,8 +135,7 @@ public final class ConfigurationManager {
             defaultQualitySettings: [
                 .quality: QualitySettings(jpeg: 95, webp: 95, png: 9),
                 .balanced: QualitySettings(jpeg: 85, webp: 85, png: 6),
-                .saving: QualitySettings(jpeg: 75, webp: 75, png: 4),
-                .auto: QualitySettings(jpeg: 85, webp: 85, png: 6)
+                .saving: QualitySettings(jpeg: 75, webp: 75, png: 4)
             ],
             tempDirectoryPrefix: "com.picsminifier",
             logDirectory: AppPaths.logDirectory(),
@@ -164,6 +166,7 @@ public final class ConfigurationManager {
     
     public struct ToolAvailability {
         public let cjpeg: Bool
+        public let cjpegli: Bool
         public let oxipng: Bool
         public let cwebp: Bool
         public let gifsicle: Bool
@@ -187,6 +190,7 @@ public final class ConfigurationManager {
     public func checkToolAvailability() -> ToolAvailability {
         return ToolAvailability(
             cjpeg: locateTool("cjpeg") != nil,
+            cjpegli: locateTool("cjpegli") != nil,
             oxipng: locateTool("oxipng") != nil,
             cwebp: locateTool("cwebp") != nil,
             gifsicle: locateTool("gifsicle") != nil,

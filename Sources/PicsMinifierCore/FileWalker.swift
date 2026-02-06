@@ -39,6 +39,7 @@ public struct FileWalker {
 			UTType.gif,
 			UTType.heic,
 			UTType.heif,
+			UTType.svg,
 			UTType(importedAs: "org.webmproject.webp")
 		]
 	}()
@@ -46,31 +47,31 @@ public struct FileWalker {
 #else
 
 public struct FileWalker {
-        public init() {}
+    public init() {}
 
-        public func enumerateSupportedFiles(at url: URL) -> [URL] {
-                var results: [URL] = []
-                let fm = FileManager.default
-                var isDir: ObjCBool = false
-                guard fm.fileExists(atPath: url.path, isDirectory: &isDir) else { return results }
+    public func enumerateSupportedFiles(at url: URL) -> [URL] {
+        var results: [URL] = []
+        let fm = FileManager.default
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: url.path, isDirectory: &isDir) else { return results }
 
-                if isDir.boolValue {
-                        if let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
-                                for case let fileURL as URL in enumerator {
-                                        if isSupported(fileURL) { results.append(fileURL) }
-                                }
-                        }
-                } else {
-                        if isSupported(url) { results.append(url) }
+        if isDir.boolValue {
+            if let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+                for case let fileURL as URL in enumerator {
+                    if isSupported(fileURL) { results.append(fileURL) }
                 }
-
-                return results
+            }
+        } else {
+            if isSupported(url) { results.append(url) }
         }
 
-        private func isSupported(_ url: URL) -> Bool {
-                let supportedExtensions: Set<String> = ["jpg", "jpeg", "png", "bmp", "gif", "heic", "heif", "webp"]
-                return supportedExtensions.contains(url.pathExtension.lowercased())
-        }
+        return results
+    }
+
+    private func isSupported(_ url: URL) -> Bool {
+        let supportedExtensions: Set<String> = ["jpg", "jpeg", "png", "bmp", "gif", "heic", "heif", "svg", "webp"]
+        return supportedExtensions.contains(url.pathExtension.lowercased())
+    }
 }
 
 #endif

@@ -17,28 +17,48 @@ struct SimpleSettingsView: View {
     @Binding var customAvifQuality: Int
     @Binding var customAvifSpeed: Int
 
+    // Computed interface mode for binding
+    private var interfaceMode: InterfaceMode {
+        if showDockIcon && showMenuBarIcon { return .both }
+        if showDockIcon { return .dock }
+        return .menuBar // Default fallback
+    }
+
+    private func setInterfaceMode(_ mode: InterfaceMode) {
+        switch mode {
+        case .dock:
+            showDockIcon = true
+            showMenuBarIcon = false
+        case .both:
+            showDockIcon = true
+            showMenuBarIcon = true
+        case .menuBar:
+            showDockIcon = false
+            showMenuBarIcon = true
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 // Header
                 HStack {
                     Text("Настройки")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                        .font(.system(size: 28, weight: .bold))
                     Spacer()
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
 
                 SettingsSection(
                     title: "Качество",
                     icon: "slider.horizontal.3"
                 ) {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 20) {
                         Picker("Preset", selection: $preset) {
                             Text("Качество").tag(CompressionPreset.quality)
                             Text("Баланс").tag(CompressionPreset.balanced)
                             Text("Сжатие").tag(CompressionPreset.saving)
-                            Text("Авто").tag(CompressionPreset.auto)
                             Text("Ручной").tag(CompressionPreset.custom)
                         }
                         .pickerStyle(.segmented)
@@ -62,7 +82,7 @@ struct SimpleSettingsView: View {
                     title: "Сохранение",
                     icon: "folder"
                 ) {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 20) {
                         Picker("Режим", selection: $saveMode) {
                             Text("Суффикс").tag(SaveMode.suffix)
                             Text("Папка").tag(SaveMode.separateFolder)
@@ -78,7 +98,7 @@ struct SimpleSettingsView: View {
                     title: "Опции",
                     icon: "gearshape.2"
                 ) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 16) {
                         GlassToggle(isOn: $preserveMetadata, title: "Сохранять метаданные", subtitle: "EXIF, GPS, Copyright", icon: "doc.text")
                         GlassToggle(isOn: $convertToSRGB, title: "sRGB Конвертация", subtitle: "Для веб-совместимости", icon: "paintpalette")
                         GlassToggle(isOn: $enableGifsicle, title: "GIF Оптимизация", subtitle: "Использовать Gifsicle", icon: "film")
@@ -89,21 +109,64 @@ struct SimpleSettingsView: View {
                     title: "Интерфейс",
                     icon: "macwindow"
                 ) {
-                     VStack(alignment: .leading, spacing: 12) {
-                        GlassToggle(isOn: $showDockIcon, title: "Иконка в Dock", subtitle: nil, icon: "dock.rectangle")
-                        GlassToggle(isOn: $showMenuBarIcon, title: "Иконка в меню", subtitle: nil, icon: "menubar.rectangle")
+                     VStack(alignment: .leading, spacing: 16) {
                         
-                        Divider().padding(.vertical, 4)
-                        
-                        Button(action: resetToDefaults) {
-                            HStack {
-                                Spacer()
-                                Text("Сбросить настройки")
-                                Spacer()
+                        // Interface Mode Selector
+                        HStack(spacing: 0) {
+                            // Dock Only
+                            InterfaceModeButton(
+                                mode: .dock,
+                                current: interfaceMode,
+                                icon: "dock.rectangle",
+                                title: "Dock"
+                            ) {
+                                setInterfaceMode(.dock)
+                            }
+
+                            Divider().frame(height: 40)
+
+                            // Both
+                            InterfaceModeButton(
+                                mode: .both,
+                                current: interfaceMode,
+                                icon: "macwindow.on.rectangle",
+                                title: "Везде"
+                            ) {
+                                setInterfaceMode(.both)
+                            }
+
+                            Divider().frame(height: 40)
+
+                            // Menu Bar Only
+                            InterfaceModeButton(
+                                mode: .menuBar,
+                                current: interfaceMode,
+                                icon: "menubar.rectangle",
+                                title: "Menu Bar"
+                            ) {
+                                setInterfaceMode(.menuBar)
                             }
                         }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
+                        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                        )
+
+                        Divider()
+                        
+                        HStack {
+                            Spacer()
+                            Button(action: resetToDefaults) {
+                                Text("Сбросить настройки")
+                                    .font(.subheadline)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.red)
+                            .opacity(0.8)
+                            Spacer()
+                        }
                      }
                 }
                 
@@ -115,9 +178,9 @@ struct SimpleSettingsView: View {
                 }
                 .padding(.top, 10)
             }
-            .padding(24)
+            .padding(32)
         }
-        .frame(width: 400)
+        .frame(width: 550)
     }
 
     private var saveModeDescription: String {
@@ -240,13 +303,15 @@ struct SettingHint: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 6) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle.fill")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
+                .padding(.top, 2)
             Text(text)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 4)
     }

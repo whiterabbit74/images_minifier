@@ -43,13 +43,14 @@ public final class SecureIntegrationLayer {
         progressCallback: @escaping (Int, Int, String) -> Void = { _, _, _ in },
         completion: @escaping ([ProcessResult]) -> Void
     ) -> Task<Void, Never> {
-        let task = Task { [weak self] in
+        // Use Task.detached to ensure we don't inherit MainActor context
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return }
-            defer { self.currentTask = nil }
-
+            // Since we are detached, 'self' capture needs care if self is actor-isolated. 
+            // SecureIntegrationLayer is a class, so it's fine, but we must be thread-safe.
+            
             let results = await self.processFiles(urls: urls, settings: settings, progressCallback: progressCallback)
             
-            // Should completion run even if cancelled? Yes, to reset UI.
             await MainActor.run {
                 completion(results)
             }
@@ -95,11 +96,8 @@ public final class SecureIntegrationLayer {
             results.append(contentsOf: batchResults)
             processedCount += batchResults.count
 
-            // Update progress with local copy
-            let currentProcessed = processedCount
-            await MainActor.run {
-                progressCallback(currentProcessed, totalFiles, "")
-            }
+            // Update progress - callback already handles thread hopping or SessionStore handles it
+            progressCallback(processedCount, totalFiles, "")
         }
 
         // Update statistics
@@ -127,7 +125,7 @@ public final class SecureIntegrationLayer {
             for url in batch {
                 let filename = url.lastPathComponent
                 group.addTask {
-                    await MainActor.run { progressCallback(baseCount, total, filename) }
+                    progressCallback(baseCount, total, filename)
                     return await self.processFile(url: url, settings: settings)
                 }
             }
@@ -206,7 +204,7 @@ public final class SecureIntegrationLayer {
         return SystemStatus(
             isHealthy: true,
             hasModernTools: checkModernTools(),
-            availableMemory: getAvailableMemory(),
+            memoryUsage: getMemoryUsage(),
             diskSpaceAvailable: getDiskSpace()
         )
     }
@@ -216,7 +214,7 @@ public final class SecureIntegrationLayer {
         return tools.allSatisfy { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    private func getAvailableMemory() -> Int64 {
+    private func getMemoryUsage() -> Int64 {
 #if canImport(Mach)
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
@@ -264,13 +262,13 @@ public final class SecureIntegrationLayer {
 public struct SystemStatus {
     public let isHealthy: Bool
     public let hasModernTools: Bool
-    public let availableMemory: Int64
+    public let memoryUsage: Int64
     public let diskSpaceAvailable: Int64
 
-    public init(isHealthy: Bool, hasModernTools: Bool, availableMemory: Int64, diskSpaceAvailable: Int64) {
+    public init(isHealthy: Bool, hasModernTools: Bool, memoryUsage: Int64, diskSpaceAvailable: Int64) {
         self.isHealthy = isHealthy
         self.hasModernTools = hasModernTools
-        self.availableMemory = availableMemory
+        self.memoryUsage = memoryUsage
         self.diskSpaceAvailable = diskSpaceAvailable
     }
 }
