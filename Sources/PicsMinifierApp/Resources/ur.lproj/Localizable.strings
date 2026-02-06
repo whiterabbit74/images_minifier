@@ -1,0 +1,160 @@
+/* UI Tabs */
+"Optimizer" = "آپٹیمائزر";
+"Statistics" = "اعداد و شمار";
+"Settings" = "سیٹنگز";
+
+/* Settings Context */
+"GENERAL" = "عمومی";
+"INTERFACE" = "انٹرفیس";
+"Launch at Login" = "لاگ ان پر لانچ کریں";
+"Notify on Completion" = "مکمل ہونے پر مطلع کریں";
+"Theme" = "تھیم";
+"System" = "سسٹم";
+"Dark" = "ڈارک";
+"Light" = "لائٹ";
+"App Icon" = "ایپ آئیکن";
+"Dock" = "ڈاک";
+"Menu Bar" = "مینو بار";
+"Both" = "دونوں";
+"Reset All" = "سب ری سیٹ کریں";
+
+/* Sidebar / Presets */
+"PRESETS" = "پری سیٹس";
+"Base Preset" = "بنیادی پری سیٹ";
+"My Presets" = "میرے پری سیٹس";
+"Save Preset" = "پری سیٹ محفوظ کریں";
+"Save current configuration as:" = "موجودہ کنفیگریشن کو اس طرح محفوظ کریں:";
+"My Custom Preset" = "میرا کسٹم پری سیٹ";
+"Cancel" = "منسوخ کریں";
+"Save" = "محفوظ کریں";
+"Save current settings" = "موجودہ سیٹنگز محفوظ کریں";
+
+/* Sidebar / Hints */
+"Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size." = "متوازن (تجویز کردہ) سائز اور معیار کا بہترین امتزاج ہے۔ معیار تفصیلات کو ترجیح دیتا ہے۔ جارحانہ بچت سائز کو کم کرتی ہے۔";
+"Controls clarity. 80-85%% is the 'sweet spot'—visually identical to original but much smaller. Go lower (60-70%%) only if file size is critical." = "وضاحت کو کنٹرول کرتا ہے۔ 80-85% بہترین پوائنٹ ہے—دیکھنے میں اصل جیسا لیکن سائز میں بہت چھوٹا ہے۔ صرف اس صورت میں 60-70% تک کم کریں اگر فائل کا سائز انتہائی اہم ہو۔";
+"How hard the CPU works to find patterns. Level 3 is fast. Level 9 tries everything to squeeze out bytes (can be very slow). No quality is lost." = "سی پی یو پیٹرن تلاش کرنے کے لیے کتنی محنت کرتا ہے۔ لیول 3 تیز ہے۔ لیول 9 بائٹس کو نچوڑنے کے لیے سب کچھ آزماتا ہے (بہت سست ہو سکتا ہے)۔ معیار میں کوئی کمی نہیں آتی۔";
+"Modern format quality. Lower numbers (20-30) are excellent. Higher (50+) keep more noise/grain but produce larger files." = "جدید فارمیٹ کوالٹی۔ کم نمبر (20-30) بہترین ہیں۔ زیادہ (50+) شور/گرین زیادہ رکھتے ہیں لیکن بڑی فائلیں بناتے ہیں۔";
+"Encoding effort (0-10). Speed 0 is painfully slow but creates the smallest files. Speed 6+ is instant. Speed 4 is a good balance." = "انکوڈنگ کی کوشش (0-10)۔ رفتار 0 بہت سست ہے لیکن سب سے چھوٹی فائلیں بناتی ہے۔ رفتار 6+ فوری ہے۔ رفتار 4 ایک اچھا توازن ہے۔";
+"Lossy (Gifsicle) is magic for GIFs—it can reduce size by 70%% by slightly simplifying colors. Lossless keeps every pixel but stays huge." = "لوسی (Gifsicle) GIFs کے لیے جادو ہے—یہ رنگوں کو تھوڑا سادہ کر کے سائز کو 70% تک کم کر سکتا ہے۔ لیس لیس ہر پکسل کو رکھتا ہے لیکن سائز بڑا رہتا ہے۔";
+"Hover over settings for details." = "تفصیلات کے لیے سیٹنگز پر ماؤس لائیں۔";
+
+/* Sidebar / Settings */
+"JPEG Quality" = "JPEG کوالٹی";
+"PNG Safe" = "PNG محفوظ";
+"AVIF Quality" = "AVIF کوالٹی";
+"AVIF Speed" = "AVIF رفتار";
+"GIF Mode" = "GIF موڈ";
+"Lossy (Gifsicle)" = "لوسی (Gifsicle)";
+"Lossless" = "لیس لیس";
+
+/* Resizing */
+"RESIZE" = "سائز تبدیل کریں";
+"Resize Images" = "تصویروں کا سائز بدلیں";
+"Target Size" = "ہدف سائز";
+"Px" = "پکسل";
+"Common Sizes" = "عام سائز";
+"Mode" = "موڈ";
+"Fit (Longest Edge)" = "فٹ (لمبا کنارہ)";
+"Width" = "چوڑائی";
+"Height" = "اونچائی";
+"Shrink images to a specific size before compressing. Great for web or thumbnails." = "کمپریس کرنے سے پہلے تصویروں کو ایک مخصوص سائز تک چھوٹا کریں۔ ویب یا تھمب نیلز کے لیے بہترین۔";
+"Choose a standard size or enter a custom value." = "ایک معیاری سائز منتخب کریں یا اپنی مرضی کی قیمت درج کریں۔";
+"Fit keeps the aspect ratio within the box. Width/Height enforce that dimension." = "'فٹ' باکس کے اندر تناسب برقرار رکھتا ہے۔ 'چوڑائی/اونچائی' اس پیمائش کو نافذ کرتی ہے۔";
+
+/* Workflow */
+"WORKFLOW" = "ورک فلو";
+"Direct Save" = "براہ راست محفوظ کریں";
+"Keep Metadata" = "میٹا ڈیٹا رکھیں";
+"Convert to sRGB" = "sRGB میں تبدیل کریں";
+"Start compressing files immediately after dropping them. Disable to review list first." = "فائلیں چھوڑنے کے فوراً بعد کمپریس کرنا شروع کریں۔ پہلے فہرست کا جائزہ لینے کے لیے اسے غیر فعال کریں۔";
+"Preserve EXIF, GPS, and creation dates. Increases file size slightly. Turn off for maximum privacy/saving." = "EXIF، GPS اور تخلیق کی تاریخیں محفوظ رکھیں۔ فائل کا سائز تھوڑا بڑھاتا ہے۔ زیادہ سے زیادہ رازداری/بچت کے لیے اسے بند کریں۔";
+"Standardizes color profile for maximum web compatibility. Fixes 'washed out' colors in some browsers." = "زیادہ سے زیادہ ویب مطابقت کے لیے کلر پروفائل کو معیاری بناتا ہے۔ کچھ براؤزرز میں 'دھندلے' رنگوں کو ٹھیک کرتا ہے۔";
+
+/* Output */
+"OUTPUT" = "آؤٹ پٹ";
+"Where files go: 'Suffix' adds _min to name (safest). 'Separate Folder' keeps them organized. 'Overwrite' replaces originals (Dangerous!)." = "فائلیں کہاں جاتی ہیں: 'لاحقہ' نام میں _min شامل کرتا ہے (سب سے محفوظ)۔ 'الگ فولڈر' انہیں منظم رکھتا ہے۔ 'اوور رائٹ' اصل فائل کو تبدیل کر دیتا ہے (خطرناک!)۔";
+"Warning: Original files will be replaced and cannot be recovered." = "انتباہ: اصل فائلیں تبدیل کر دی جائیں گی اور انہیں واپس نہیں لایا جا سکتا۔";
+
+/* Optimizer / Main View */
+"Drag files here to start batch" = "بیچ شروع کرنے کے لیے فائلیں یہاں کھینچیں";
+"Supports nested folders" = "نیستڈ فولڈرز کو سپورٹ کرتا ہے";
+"Toggle Theme" = "تھیم تبدیل کریں";
+"Start" = "شروع کریں";
+"Optimizing..." = "آپٹیمائز ہو رہا ہے...";
+"Done with Errors" = "غلطیوں کے ساتھ مکمل";
+"Complete!" = "مکمل ہوا!";
+
+/* Results Table */
+"File" = "فائل";
+"Original" = "اصل";
+"Optimized" = "آپٹیمائز شدہ";
+"Savings" = "بچت";
+"Status" = "صورتحال";
+"Clear List" = "فہرست صاف کریں";
+"Saved" = "محفوظ کیا گیا";
+"Pending" = "زیر التواء";
+"Processing" = "پروسیسنگ";
+"Done" = "ہو گیا";
+"Error" = "غلطی";
+"Skipped" = "چھوڑ دیا گیا";
+"Skip" = "چھوڑیں";
+"%d Files processed successfully" = "%d فائلیں کامیابی سے پراسیس ہوئیں";
+
+/* Statistics */
+"Real-time compression metrics" = "ریئل ٹائم کمپریشن میٹرکس";
+"CURRENT SESSION" = "موجودہ سیشن";
+"Session Files" = "سیشن فائلیں";
+"Session Saved" = "سیشن کی بچت";
+"LIFETIME TOTALS" = "مجموعی طور پر";
+"Total Files" = "کل فائلیں";
+"Total Saved" = "کل بچت";
+
+/* Additional Settings keys */
+"Appearance" = "Appearance";
+"Appearance Mode" = "Appearance Mode";
+"System Default" = "System Default";
+"Interface Mode" = "Interface Mode";
+"Show only with savings" = "Show only with savings";
+"Compression Quality" = "Compression Quality";
+"Compression Preset" = "Compression Preset";
+"Maximum Quality" = "Maximum Quality";
+"Balanced" = "Balanced";
+"Maximum Savings" = "Maximum Savings";
+"Automatic" = "Automatic";
+"File Save Mode" = "File Save Mode";
+"Add suffix '_compressed'" = "Add suffix '_compressed'";
+"Create 'Compressor' folder" = "Create 'Compressor' folder";
+"Overwrite originals" = "Overwrite originals";
+"Image Dimensions" = "Image Dimensions";
+"Max side dimension" = "Max side dimension";
+"pixels" = "pixels";
+"No limits" = "No limits";
+"Dimension limited" = "Dimension limited";
+"0 — no dimension limit" = "0 — no dimension limit";
+"Preserve metadata" = "Preserve metadata";
+"Optimize GIF" = "Optimize GIF";
+"Files processed: %lld" = "Files processed: %lld";
+"Total saved: %@" = "Total saved: %@";
+"Reset Statistics" = "Reset Statistics";
+"Supported Formats" = "Supported Formats";
+"Libraries used for file processing" = "Libraries used for file processing";
+"Improve compression!" = "Improve compression!";
+"• JPEG: install MozJPEG for +35% better compression" = "• JPEG: install MozJPEG for +35% better compression";
+"• PNG: install Oxipng for +20% better compression" = "• PNG: install Oxipng for +20% better compression";
+"• GIF: install Giflossy for +30% better compression" = "• GIF: install Giflossy for +30% better compression";
+"Command: brew install mozjpeg oxipng giflossy" = "Command: brew install mozjpeg oxipng giflossy";
+"Tools" = "Tools";
+"Check tool availability" = "Check tool availability";
+"✅ System WebP codec available" = "✅ System WebP codec available";
+"✅ Embedded WebP available" = "✅ Embedded WebP available";
+"❌ WebP unavailable" = "❌ WebP unavailable";
+"❌ gifsicle not found" = "❌ gifsicle not found";
+"✅ gifsicle: %@" = "✅ gifsicle: %@";
+"Advanced" = "Advanced";
+"CSV Log" = "CSV Log";
+"Logs Folder" = "Logs Folder";
+"Overwrite Originals" = "Overwrite Originals";
+"Files will be overwritten irrecoverably. Are you sure?" = "Files will be overwritten irrecoverably. Are you sure?";
+"Reset statistics?" = "Reset statistics?";
+"Counters will be reset and CSV log deleted. This action is irreversible." = "Counters will be reset and CSV log deleted. This action is irreversible.";
+"Reset" = "Reset";

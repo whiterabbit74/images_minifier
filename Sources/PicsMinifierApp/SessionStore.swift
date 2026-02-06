@@ -9,6 +9,11 @@ class SessionStore: ObservableObject {
     @Published var isProcessing: Bool = false
     @Published var currentFileName: String = ""
     
+    // Session Stats (Reset on app launch)
+    @Published var sessionCompressedCount: Int = 0
+    @Published var sessionOriginalBytes: Int = 0
+    @Published var sessionSavedBytes: Int = 0
+    
     // Dependencies
     var settingsStore: SettingsStore?
     
@@ -131,6 +136,9 @@ class SessionStore: ObservableObject {
         
         // Populate initial list (Fast on Main Actor for N < 10000, acceptable)
         // For extremely large lists, this could also be lazy, but for <5000 it's fine.
+        
+        // Populate initial list (Fast on Main Actor for N < 10000, acceptable)
+        // For extremely large lists, this could also be lazy, but for <5000 it's fine.
         var initialList: [ProcessedFile] = []
         initialList.reserveCapacity(uniqueFiles.count)
         
@@ -157,6 +165,23 @@ class SessionStore: ObservableObject {
         stats.failedFiles = 0
         stats.skippedFiles = 0
 
+        // Check for immediate compression
+        if settingsStore?.compressImmediately == true {
+             await startPendingCompression()
+        } else {
+             self.isProcessing = false
+        }
+    }
+    
+    @MainActor
+    func startPendingCompression() async {
+        let pendingFiles = processedFiles.filter { $0.status == .pending }
+        guard !pendingFiles.isEmpty else { return }
+        
+        self.isProcessing = true
+        
+        let urlsToProcess = pendingFiles.map { $0.url }
+        
         // Prepare Settings
         var settings = AppSettings()
         if let store = settingsStore {
@@ -165,11 +190,21 @@ class SessionStore: ObservableObject {
             settings.preserveMetadata = store.preserveMetadata
             settings.convertToSRGB = store.convertToSRGB
             settings.enableGifsicle = store.enableGifsicle
+            settings.enableSvgcleaner = store.enableSvgcleaner
             
             settings.customJpegQuality = store.customJpegQuality
             settings.customPngLevel = store.customPngLevel
             settings.customAvifQuality = store.customAvifQuality
             settings.customAvifSpeed = store.customAvifSpeed
+            settings.customWebPQuality = store.customWebPQuality
+            settings.customWebPMethod = store.customWebPMethod
+            settings.svgPrecision = store.svgPrecision
+            settings.svgMultipass = store.svgMultipass
+            
+            settings.resizeEnabled = store.resizeEnabled
+            settings.resizeValue = store.resizeValue
+            settings.resizeCondition = store.resizeCondition
+            settings.compressImmediately = store.compressImmediately
         }
         
         let md = UserDefaults.standard.object(forKey: "settings.maxDimension") as? Double ?? 0
@@ -180,7 +215,7 @@ class SessionStore: ObservableObject {
         let throttleInterval: TimeInterval = 0.15 // 150ms throttle
         
         SecureIntegrationLayer.shared.compressFiles(
-            urls: uniqueFiles,
+            urls: urlsToProcess,
             settings: settings,
             progressCallback: { [weak self] processed, total, filename in
                 guard let self = self else { return }
@@ -195,7 +230,7 @@ class SessionStore: ObservableObject {
                         self.stats.totalInBatch = total
                         
                         if !filename.isEmpty {
-                            self.currentFileName = NSLocalizedString("Обработка: ", comment: "") + filename
+                            self.currentFileName = NSLocalizedString("Processing: ", comment: "") + filename
                             // OPTIMIZATION: Don't search full array for status update if list is huge
                             if self.processedFiles.count < 2000 {
                                 if let index = self.processedFiles.firstIndex(where: { $0.url.lastPathComponent == filename }) {
@@ -219,7 +254,8 @@ class SessionStore: ObservableObject {
                     // Create a map for O(1) lookups
                     var resultMap: [String: ProcessResult] = [:]
                     for result in results {
-                         resultMap[result.originalPath] = result
+                        let key = URL(fileURLWithPath: result.originalPath).standardizedFileURL.path
+                        resultMap[key] = result
                     }
                     
                     // Batch update processedFiles
@@ -227,7 +263,7 @@ class SessionStore: ObservableObject {
                     var updatedFiles = self.processedFiles
                     
                     for i in 0..<updatedFiles.count {
-                        let path = updatedFiles[i].url.path
+                        let path = updatedFiles[i].url.standardizedFileURL.path
                         if let result = resultMap[path] {
                             let status = result.status.lowercased()
                             let isSuccess = status == "success" || status == "ok"
@@ -263,8 +299,38 @@ class SessionStore: ObservableObject {
                     self.stats.errorCount = failureCount
 
                     self.isProcessing = false
-                    AppUIManager.shared.showDockBounce()
+                    
+                    // Update Session Stats
+                    let savedInThisBatch = Int(max(0, totalOriginal - totalCompressed))
+                    self.sessionCompressedCount += successCount
+                    self.sessionOriginalBytes += Int(totalOriginal)
+                    self.sessionSavedBytes += savedInThisBatch
+                    
+                    // Update Lifetime Stats
+                    if let store = self.settingsStore, !store.disableStatistics {
+                        store.lifetimeCompressedCount += successCount
+                        store.lifetimeOriginalBytes += Int(totalOriginal)
+                        store.lifetimeSavedBytes += savedInThisBatch
+                        
+                        // Per-format breakdown
+                        for i in 0..<updatedFiles.count {
+                            if updatedFiles[i].status == .done {
+                                let ext = updatedFiles[i].url.pathExtension
+                                let saved = Int(max(0, updatedFiles[i].originalSize - updatedFiles[i].optimizedSize))
+                                store.updateFormatSavings(extension: ext, savedBytes: saved)
+                            }
+                        }
+                    }
+                    
+                AppUIManager.shared.showDockBounce()
+                
+                if self.settingsStore?.notifyOnCompletion == true {
+                    AppUIManager.shared.showNotification(
+                        title: "Done!",
+                        body: "Files processed: \(self.stats.processedFiles)"
+                    )
                 }
+            }
             }
         )
     }
@@ -272,6 +338,16 @@ class SessionStore: ObservableObject {
     func cancelProcessing() {
         ProcessingManager.shared.cancel()
         SecureIntegrationLayer.shared.cancelCompression()
+        self.isProcessing = false
+    }
+    
+    @MainActor
+    func clearSession() {
+        self.processedFiles.removeAll()
+        self.stats = SessionStats()
+        self.sessionCompressedCount = 0
+        self.sessionSavedBytes = 0
+        self.currentFileName = ""
         self.isProcessing = false
     }
     

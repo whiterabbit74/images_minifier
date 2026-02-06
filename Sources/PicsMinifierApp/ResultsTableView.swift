@@ -26,22 +26,23 @@ struct ProcessedFile: Identifiable {
 
 struct ResultsTableView: View {
     let files: [ProcessedFile]
+    var onClear: () -> Void = {}
     
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack(spacing: 0) {
-                Text("File")
+                Text(NSLocalizedString("File", comment: ""))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 20)
                 
-                Text("Original")
+                Text(NSLocalizedString("Original", comment: ""))
                     .frame(width: 100, alignment: .trailing)
                 
-                Text("Optimized")
+                Text(NSLocalizedString("Optimized", comment: ""))
                     .frame(width: 100, alignment: .trailing)
                 
-                Text("Savings")
+                Text(NSLocalizedString("Savings", comment: ""))
                     .frame(width: 100, alignment: .trailing)
                     .foregroundColor(Color.proGreen)
                     .padding(.trailing, 20)
@@ -64,16 +65,32 @@ struct ResultsTableView: View {
             
             // Summary Bar (Blue)
             if !files.isEmpty {
-                let totalOriginal = files.reduce(0) { $0 + $1.originalSize }
-                let totalOptimized = files.reduce(0) { $0 + $1.optimizedSize }
+                let successful = files.filter { $0.status == .done }
+                let totalOriginal = successful.reduce(0) { $0 + $1.originalSize }
+                let totalOptimized = successful.reduce(0) { $0 + $1.optimizedSize }
                 let totalSaved = max(0, totalOriginal - totalOptimized)
                 let percent = totalOriginal > 0 ? Double(totalSaved) / Double(totalOriginal) * 100 : 0
                 
                 HStack {
-                    Text("\(files.count) Files processed successfully")
+                    Button(action: onClear) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                            Text(NSLocalizedString("Clear List", comment: ""))
+                        }
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.9))
+                    }
+                    .buttonStyle(.plain)
+                    
                     Spacer()
+                    
+                    Text(String.localizedStringWithFormat(NSLocalizedString("%d Files processed successfully", comment: ""), successful.count))
+                        .opacity(0.8)
+                    
+                    Spacer()
+                    
                     HStack(spacing: 4) {
-                        Text("Saved")
+                        Text(NSLocalizedString("Saved", comment: ""))
                         Text("\(ByteCountFormatter.string(fromByteCount: totalSaved, countStyle: .file)) (\(Int(percent))%)")
                             .fontWeight(.bold)
                     }
@@ -139,10 +156,15 @@ struct ResultsRow: View {
     private func iconFor(_ file: ProcessedFile) -> String {
         let ext = file.url.pathExtension.lowercased()
         switch ext {
-        case "png": return "desktopcomputer" // screenshot_cover.png shows a monitor
-        case "jpg", "jpeg": return "camera.fill" // photo_session_01.jpg shows a camera
-        case "svg": return "paintpalette.fill" // logo_vector.svg shows a palette
-        case "gif": return "film.fill" // animation.gif shows a film reel
+        case "png": return "photo"
+        case "jpg", "jpeg": return "camera.fill"
+        case "svg": return "square.on.circle"
+        case "gif": return "film"
+        case "webp": return "photo.stack"
+        case "avif": return "photo.circle"
+        case "heic": return "photo.on.rectangle"
+        case "tiff", "tif": return "scroll"
+        case "bmp": return "checkerboard.rectangle"
         default: return "doc.fill"
         }
     }
@@ -152,9 +174,11 @@ struct ResultsRow: View {
         case .done:
             return String(format: "-%.0f%%", file.savingsPercent * 100)
         case .skipped:
-            return "Skip"
+            return NSLocalizedString("Skip", comment: "")
         case .error:
-            return "Error"
+            return NSLocalizedString("Error", comment: "")
+        case .pending:
+            return NSLocalizedString("Pending", comment: "")
         default:
             return ""
         }

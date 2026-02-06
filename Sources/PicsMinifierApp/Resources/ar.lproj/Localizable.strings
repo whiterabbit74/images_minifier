@@ -1,0 +1,160 @@
+/* UI Tabs */
+"Optimizer" = "المحسن";
+"Statistics" = "الإحصائيات";
+"Settings" = "الإعدادات";
+
+/* Settings Context */
+"GENERAL" = "عام";
+"INTERFACE" = "الواجهة";
+"Launch at Login" = "التشغيل عند تسجيل الدخول";
+"Notify on Completion" = "تنبيه عند الانتهاء";
+"Theme" = "السمة";
+"System" = "النظام";
+"Dark" = "داكن";
+"Light" = "فاتح";
+"App Icon" = "أيقونة التطبيق";
+"Dock" = "الدوك";
+"Menu Bar" = "شريط القائمة";
+"Both" = "كلاهما";
+"Reset All" = "إعادة ضبط الكل";
+
+/* Sidebar / Presets */
+"PRESETS" = "الإعدادات المسبقة";
+"Base Preset" = "الإعداد المسبق الأساسي";
+"My Presets" = "إعداداتي المسبقة";
+"Save Preset" = "حفظ الإعداد المسبق";
+"Save current configuration as:" = "حفظ التكوين الحالي باسم:";
+"My Custom Preset" = "إعدادي المسبق المخصص";
+"Cancel" = "إلغاء";
+"Save" = "حفظ";
+"Save current settings" = "حفظ الإعدادات الحالية";
+
+/* Sidebar / Hints */
+"Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size." = "متوازن (موصى به) هو أفضل مزيج بين الحجم والجودة. الجودة تعطي الأولوية للتفاصيل. التوفير القوي يقلل الحجم بشكل كبير.";
+"Controls clarity. 80-85%% is the 'sweet spot'—visually identical to original but much smaller. Go lower (60-70%%) only if file size is critical." = "يتحكم في الوضوح. 80-85%% هي النسبة المثالية - تماثل الأصل بصرياً ولكن بحجم أصغر بكثير. خفضها لـ 60-70%% فقط إذا كان حجم الملف بالغ الأهمية.";
+"How hard the CPU works to find patterns. Level 3 is fast. Level 9 tries everything to squeeze out bytes (can be very slow). No quality is lost." = "مدى جهد المعالج في البحث عن الأنماط. المستوى 3 سريع. المستوى 9 يحاول بكل السبل لتقليل الحجم (قد يكون بطيئاً جداً). لا تُفقد الجودة.";
+"Modern format quality. Lower numbers (20-30) are excellent. Higher (50+) keep more noise/grain but produce larger files." = "جودة التنسيق الحديثة. الأرقام المنخفضة (20-30) ممتازة. الأرقام الأعلى (50+) تحافظ على ضوضاء أكثر ولكن تنتج ملفات أكبر.";
+"Encoding effort (0-10). Speed 0 is painfully slow but creates the smallest files. Speed 6+ is instant. Speed 4 is a good balance." = "جهد الترميز (0-10). السرعة 0 بطيئة جداً ولكنها تنتج أصغر الملفات. السرعة 6+ فورية. السرعة 4 توازن جيد.";
+"Lossy (Gifsicle) is magic for GIFs—it can reduce size by 70%% by slightly simplifying colors. Lossless keeps every pixel but stays huge." = "فقدان البيانات (Gifsicle) سحري لصور GIF - يمكنه تقليل الحجم بنسبة 70%% بتبسيط الألوان قليلاً. عدم الفقدان يحافظ على كل بكسل لكن الحجم يبقى كبيراً.";
+"Hover over settings for details." = "مرر الفأرة فوق الإعدادات للتفاصيل.";
+
+/* Sidebar / Settings */
+"JPEG Quality" = "جودة JPEG";
+"PNG Safe" = "PNG آمن";
+"AVIF Quality" = "جودة AVIF";
+"AVIF Speed" = "سرعة AVIF";
+"GIF Mode" = "وضع GIF";
+"Lossy (Gifsicle)" = "فقداني (Gifsicle)";
+"Lossless" = "غير فقداني";
+
+/* Resizing */
+"RESIZE" = "تغيير الحجم";
+"Resize Images" = "تغيير حجم الصور";
+"Target Size" = "الحجم المستهدف";
+"Px" = "بكسل";
+"Common Sizes" = "الأحجام الشائعة";
+"Mode" = "الوضع";
+"Fit (Longest Edge)" = "ملاءمة (الحافة الأطول)";
+"Width" = "العرض";
+"Height" = "الارتفاع";
+"Shrink images to a specific size before compressing. Great for web or thumbnails." = "تقليص الصور لحجم محدد قبل الضغط. رائع للويب أو المصغرات.";
+"Choose a standard size or enter a custom value." = "اختر حجماً قياسياً أو أدخل قيمة مخصصة.";
+"Fit keeps the aspect ratio within the box. Width/Height enforce that dimension." = "تؤدي 'الملاءمة' للحفاظ على نسبة العرض إلى الارتفاع. يفرض 'العرض/الارتفاع' تلك الأبعاد.";
+
+/* Workflow */
+"WORKFLOW" = "سير العمل";
+"Direct Save" = "حفظ مباشر";
+"Keep Metadata" = "الاحتفاظ بالبيانات الوصفية";
+"Convert to sRGB" = "تحويل إلى sRGB";
+"Start compressing files immediately after dropping them. Disable to review list first." = "بدء ضغط الملفات فور سحبها. عطل هذا لمراجعة القائمة أولاً.";
+"Preserve EXIF, GPS, and creation dates. Increases file size slightly. Turn off for maximum privacy/saving." = "الحفاظ على EXIF و GPS وتواريخ الإنشاء. يزيد الحجم قليلاً. أوقفه لأقصى خصوصية/توفير.";
+"Standardizes color profile for maximum web compatibility. Fixes 'washed out' colors in some browsers." = "يوحد نمط الألوان لأقصى توافق مع الويب. يصلح الألوان 'الباهتة' في بعض المتصفحات.";
+
+/* Output */
+"OUTPUT" = "المخرجات";
+"Where files go: 'Suffix' adds _min to name (safest). 'Separate Folder' keeps them organized. 'Overwrite' replaces originals (Dangerous!)." = "أين تذهب الملفات: 'Suffix' يضيف _min للاسم (الأكثر أماناً). 'Separate Folder' يحافظ عليها منظمة. 'Overwrite' يستبدل الأصول (خطر!).";
+"Warning: Original files will be replaced and cannot be recovered." = "تحذير: سيتم استبدال الملفات الأصلية ولا يمكن استعادتها.";
+
+/* Optimizer / Main View */
+"Drag files here to start batch" = "اسحب الملفات هنا لبدء المجموعة";
+"Supports nested folders" = "يدعم المجلدات المتداخلة";
+"Toggle Theme" = "تبديل السمة";
+"Start" = "ابدأ";
+"Optimizing..." = "جاري التحسين...";
+"Done with Errors" = "تم مع وجود أخطاء";
+"Complete!" = "اكتمل!";
+
+/* Results Table */
+"File" = "ملف";
+"Original" = "الأصلي";
+"Optimized" = "المحسن";
+"Savings" = "التوفير";
+"Status" = "الحالة";
+"Clear List" = "مسح القائمة";
+"Saved" = "تم توفيره";
+"Pending" = "قيد الانتظار";
+"Processing" = "جاري المعالجة";
+"Done" = "تم";
+"Error" = "خطأ";
+"Skipped" = "تم التخطي";
+"Skip" = "تخطي";
+"%d Files processed successfully" = "تمت معالجة %d ملفات بنجاح";
+
+/* Statistics */
+"Real-time compression metrics" = "مقاييس الضغط في الوقت الفعلي";
+"CURRENT SESSION" = "الجلسة الحالية";
+"Session Files" = "ملفات الجلسة";
+"Session Saved" = "الموفر في الجلسة";
+"LIFETIME TOTALS" = "الإجمالي العام";
+"Total Files" = "إجمالي الملفات";
+"Total Saved" = "إجمالي التوفير";
+
+/* Additional Settings keys */
+"Appearance" = "Appearance";
+"Appearance Mode" = "Appearance Mode";
+"System Default" = "System Default";
+"Interface Mode" = "Interface Mode";
+"Show only with savings" = "Show only with savings";
+"Compression Quality" = "Compression Quality";
+"Compression Preset" = "Compression Preset";
+"Maximum Quality" = "Maximum Quality";
+"Balanced" = "Balanced";
+"Maximum Savings" = "Maximum Savings";
+"Automatic" = "Automatic";
+"File Save Mode" = "File Save Mode";
+"Add suffix '_compressed'" = "Add suffix '_compressed'";
+"Create 'Compressor' folder" = "Create 'Compressor' folder";
+"Overwrite originals" = "Overwrite originals";
+"Image Dimensions" = "Image Dimensions";
+"Max side dimension" = "Max side dimension";
+"pixels" = "pixels";
+"No limits" = "No limits";
+"Dimension limited" = "Dimension limited";
+"0 — no dimension limit" = "0 — no dimension limit";
+"Preserve metadata" = "Preserve metadata";
+"Optimize GIF" = "Optimize GIF";
+"Files processed: %lld" = "Files processed: %lld";
+"Total saved: %@" = "Total saved: %@";
+"Reset Statistics" = "Reset Statistics";
+"Supported Formats" = "Supported Formats";
+"Libraries used for file processing" = "Libraries used for file processing";
+"Improve compression!" = "Improve compression!";
+"• JPEG: install MozJPEG for +35% better compression" = "• JPEG: install MozJPEG for +35% better compression";
+"• PNG: install Oxipng for +20% better compression" = "• PNG: install Oxipng for +20% better compression";
+"• GIF: install Giflossy for +30% better compression" = "• GIF: install Giflossy for +30% better compression";
+"Command: brew install mozjpeg oxipng giflossy" = "Command: brew install mozjpeg oxipng giflossy";
+"Tools" = "Tools";
+"Check tool availability" = "Check tool availability";
+"✅ System WebP codec available" = "✅ System WebP codec available";
+"✅ Embedded WebP available" = "✅ Embedded WebP available";
+"❌ WebP unavailable" = "❌ WebP unavailable";
+"❌ gifsicle not found" = "❌ gifsicle not found";
+"✅ gifsicle: %@" = "✅ gifsicle: %@";
+"Advanced" = "Advanced";
+"CSV Log" = "CSV Log";
+"Logs Folder" = "Logs Folder";
+"Overwrite Originals" = "Overwrite Originals";
+"Files will be overwritten irrecoverably. Are you sure?" = "Files will be overwritten irrecoverably. Are you sure?";
+"Reset statistics?" = "Reset statistics?";
+"Counters will be reset and CSV log deleted. This action is irreversible." = "Counters will be reset and CSV log deleted. This action is irreversible.";
+"Reset" = "Reset";

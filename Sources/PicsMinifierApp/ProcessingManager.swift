@@ -17,7 +17,7 @@ final class ProcessingManager: @unchecked Sendable {
 		let maxConcurrent = max(2, ProcessInfo.processInfo.processorCount - 1)
 		await withTaskGroup(of: Void.self) { group in
 			var it = urls.makeIterator()
-			// Первичное окно
+			// Initial batch window
 			for _ in 0..<maxConcurrent {
 				guard let url = it.next() else { break }
                                 group.addTask { [weak self] in
@@ -43,7 +43,7 @@ final class ProcessingManager: @unchecked Sendable {
                                         }
                                 }
 			}
-			// Подкладываем оставшиеся задачи, дожидаясь завершения по одной
+			// Submit remaining tasks, waiting for completion one by one
 			while let url = it.next() {
 				if isCancelled { break }
 				_ = await group.next()
@@ -67,7 +67,7 @@ final class ProcessingManager: @unchecked Sendable {
 			await group.waitForAll()
 		}
 
-		// Очистим бейдж и уведомим об окончании партии
+		// Clear badge and notify batch completion
 		DispatchQueue.main.async {
 			NSApp.dockTile.badgeLabel = ""
 		}
@@ -111,9 +111,10 @@ final class ProcessingManager: @unchecked Sendable {
             "MozJPEG": availability.cjpeg,
             "Oxipng": availability.oxipng,
             "Gifsicle": availability.gifsicle,
-            "AVIF": availability.avifenc
+            "AVIF": availability.avifenc,
+            "WebP": availability.cwebp,
+            "SVGCleaner": availability.svgcleaner
         ]
     }
 }
-
 

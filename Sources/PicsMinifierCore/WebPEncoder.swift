@@ -15,6 +15,7 @@ public final class WebPEncoder {
         public init() {}
 
         public func availability() -> WebPAvailability {
+                Self.configureEmbeddedLibIfNeeded()
                 let webp = UTType(importedAs: "org.webmproject.webp").identifier as CFString
                 if let types = CGImageDestinationCopyTypeIdentifiers() as? [CFString], types.contains(webp) {
                         return .systemCodec
@@ -23,6 +24,7 @@ public final class WebPEncoder {
         }
 
         public func encodeRGBA(_ rgba: Data, width: Int, height: Int, quality: Int) -> Data? {
+                Self.configureEmbeddedLibIfNeeded()
                 var outputPtr: UnsafeMutablePointer<UInt8>? = nil
                 var outputSize: Int = 0
                 let stride = width * 4
@@ -50,6 +52,7 @@ public final class WebPEncoder {
         }
 
         public func decodeRGBA(_ webpData: Data) -> (rgba: Data, width: Int, height: Int, stride: Int)? {
+                Self.configureEmbeddedLibIfNeeded()
                 var outPtr: UnsafeMutablePointer<UInt8>? = nil
                 var w: Int32 = 0
                 var h: Int32 = 0
@@ -73,6 +76,20 @@ public final class WebPEncoder {
                 let byteCount = Int(stride) * Int(h)
                 let data = Data(bytes: out, count: byteCount)
                 return (data, Int(w), Int(h), Int(stride))
+        }
+
+        private static var didConfigureEmbedded = false
+
+        private static func configureEmbeddedLibIfNeeded() {
+                guard !didConfigureEmbedded else { return }
+                didConfigureEmbedded = true
+
+                let envKey = "PICS_LIBWEBP_PATH"
+                if ProcessInfo.processInfo.environment[envKey] != nil { return }
+
+                if let url = Bundle.module.url(forResource: "libwebp", withExtension: "dylib") {
+                        setenv(envKey, url.path, 1)
+                }
         }
 }
 #else

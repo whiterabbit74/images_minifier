@@ -31,7 +31,8 @@ public final class ConfigurationManager {
             "oxipng": ["/opt/homebrew/bin/oxipng", "/usr/local/bin/oxipng", "/usr/bin/oxipng"],
             "cwebp": ["/opt/homebrew/bin/cwebp", "/usr/local/bin/cwebp", "/usr/bin/cwebp"],
             "gifsicle": ["/opt/homebrew/bin/gifsicle", "/usr/local/bin/gifsicle", "/usr/bin/gifsicle"],
-            "avifenc": ["/opt/homebrew/bin/avifenc", "/usr/local/bin/avifenc", "/usr/bin/avifenc"]
+            "avifenc": ["/opt/homebrew/bin/avifenc", "/usr/local/bin/avifenc", "/usr/bin/avifenc"],
+            "svgcleaner": ["/opt/homebrew/bin/svgcleaner", "/usr/local/bin/svgcleaner", "/usr/bin/svgcleaner"]
         ],
         .macOSIntel: [
             "cjpeg": ["/usr/local/opt/mozjpeg/bin/cjpeg", "/usr/local/bin/cjpeg", "/opt/homebrew/bin/cjpeg"],
@@ -39,7 +40,8 @@ public final class ConfigurationManager {
             "oxipng": ["/usr/local/bin/oxipng", "/opt/homebrew/bin/oxipng", "/usr/bin/oxipng"],
             "cwebp": ["/usr/local/bin/cwebp", "/opt/homebrew/bin/cwebp", "/usr/bin/cwebp"],
             "gifsicle": ["/usr/local/bin/gifsicle", "/opt/homebrew/bin/gifsicle", "/usr/bin/gifsicle"],
-            "avifenc": ["/usr/local/bin/avifenc", "/opt/homebrew/bin/avifenc", "/usr/bin/avifenc"]
+            "avifenc": ["/usr/local/bin/avifenc", "/opt/homebrew/bin/avifenc", "/usr/bin/avifenc"],
+            "svgcleaner": ["/usr/local/bin/svgcleaner", "/opt/homebrew/bin/svgcleaner", "/usr/bin/svgcleaner"]
         ],
         .unknown: [
             "cjpeg": ["/usr/bin/cjpeg", "/usr/local/bin/cjpeg"],
@@ -47,7 +49,8 @@ public final class ConfigurationManager {
             "oxipng": ["/usr/bin/oxipng", "/usr/local/bin/oxipng"],
             "cwebp": ["/usr/bin/cwebp", "/usr/local/bin/cwebp"],
             "gifsicle": ["/usr/bin/gifsicle", "/usr/local/bin/gifsicle"],
-            "avifenc": ["/usr/bin/avifenc", "/usr/local/bin/avifenc"]
+            "avifenc": ["/usr/bin/avifenc", "/usr/local/bin/avifenc"],
+            "svgcleaner": ["/usr/bin/svgcleaner", "/usr/local/bin/svgcleaner"]
         ]
     ]
 
@@ -60,6 +63,11 @@ public final class ConfigurationManager {
             if validateTool(at: url) {
                 return url
             }
+        }
+
+        // Check bundled resources (SPM resources)
+        if let bundled = bundleToolURL(toolName), validateTool(at: bundled) {
+            return bundled
         }
 
         // Check platform-specific paths
@@ -76,6 +84,10 @@ public final class ConfigurationManager {
 
         // Fallback: check PATH environment
         return searchInPATH(toolName: toolName)
+    }
+
+    private func bundleToolURL(_ toolName: String) -> URL? {
+        return Bundle.module.url(forResource: toolName, withExtension: nil)
     }
 
     private func validateTool(at url: URL) -> Bool {
@@ -133,9 +145,9 @@ public final class ConfigurationManager {
             maxMemoryUsage: 2 * 1024 * 1024 * 1024, // 2GB
             memoryPressureThreshold: 0.8,
             defaultQualitySettings: [
-                .quality: QualitySettings(jpeg: 95, webp: 95, png: 9),
-                .balanced: QualitySettings(jpeg: 85, webp: 85, png: 6),
-                .saving: QualitySettings(jpeg: 75, webp: 75, png: 4)
+                .quality: QualitySettings(jpeg: 98, webp: 98, png: 9),
+                .balanced: QualitySettings(jpeg: 90, webp: 90, png: 7),
+                .saving: QualitySettings(jpeg: 82, webp: 82, png: 5)
             ],
             tempDirectoryPrefix: "com.picsminifier",
             logDirectory: AppPaths.logDirectory(),
@@ -171,6 +183,7 @@ public final class ConfigurationManager {
         public let cwebp: Bool
         public let gifsicle: Bool
         public let avifenc: Bool
+        public let svgcleaner: Bool
         
         public var hasModernTools: Bool {
             return cjpeg && oxipng && cwebp && gifsicle && avifenc
@@ -183,6 +196,7 @@ public final class ConfigurationManager {
             if !cwebp { missing.append("cwebp") }
             if !gifsicle { missing.append("gifsicle") }
             if !avifenc { missing.append("avifenc") }
+            if !svgcleaner { missing.append("svgcleaner") }
             return missing
         }
     }
@@ -194,7 +208,8 @@ public final class ConfigurationManager {
             oxipng: locateTool("oxipng") != nil,
             cwebp: locateTool("cwebp") != nil,
             gifsicle: locateTool("gifsicle") != nil,
-            avifenc: locateTool("avifenc") != nil
+            avifenc: locateTool("avifenc") != nil,
+            svgcleaner: locateTool("svgcleaner") != nil
         )
     }
 
@@ -228,6 +243,9 @@ public final class ConfigurationManager {
                 if !availability.avifenc {
                     instructions.append("brew install libavif")
                 }
+                if !availability.svgcleaner {
+                    instructions.append("brew install svgcleaner")
+                }
 
             case .unknown:
                 instructions.append("Install using your system package manager:")
@@ -236,6 +254,7 @@ public final class ConfigurationManager {
                 instructions.append("- webp: WebP tools (includes cwebp)")
                 instructions.append("- gifsicle: GIF optimization tool")
                 instructions.append("- libavif: AVIF tools (includes avifenc)")
+                instructions.append("- svgcleaner: SVG optimizer")
             }
 
             instructions.append("")

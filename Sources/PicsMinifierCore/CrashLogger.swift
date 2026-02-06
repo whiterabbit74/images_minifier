@@ -9,7 +9,7 @@ private struct CrashLoggerMessageError: LocalizedError {
 #if canImport(os.log)
 import os.log
 
-/// Простая система логирования ошибок и крашей
+/// Simple error and crash logging system
 public final class CrashLogger {
     public static let shared = CrashLogger()
 
@@ -20,7 +20,7 @@ public final class CrashLogger {
         let logsDir = AppPaths.logsDirectory()
         logFileURL = logsDir.appendingPathComponent("crash_log.txt")
 
-        // Создаем файл лога если его нет
+        // Create log file if it doesn't exist
         if !FileManager.default.fileExists(atPath: logFileURL.path) {
             let header = "PicsMinifier Crash Log\nStarted: \(Date())\n\n"
             try? header.write(to: logFileURL, atomically: true, encoding: .utf8)
@@ -29,15 +29,15 @@ public final class CrashLogger {
 
     private let ioQueue = DispatchQueue(label: "com.picsminifier.crashlogger.io", qos: .utility)
 
-    /// Логирует ошибку в файл и системный лог
+    /// Logs error to file and system log
     public func logError(_ error: Error, context: String = "") {
         let timestamp = DateFormatter.logFormatter.string(from: Date())
         let message = "[\(timestamp)] ERROR in \(context): \(error.localizedDescription)"
 
-        // Пишем в системный лог
+        // Write to system log
         logger.error("\(message)")
 
-        // Пишем в файл
+        // Write to file
         appendToFile(message)
     }
 
@@ -45,7 +45,7 @@ public final class CrashLogger {
         logError(CrashLoggerMessageError(message: message), context: context)
     }
 
-    /// Логирует предупреждение
+    /// Logs a warning
     public func logWarning(_ message: String, context: String = "") {
         let timestamp = DateFormatter.logFormatter.string(from: Date())
         let logMessage = "[\(timestamp)] WARNING in \(context): \(message)"
@@ -54,7 +54,7 @@ public final class CrashLogger {
         appendToFile(logMessage)
     }
 
-    /// Логирует информацию для отладки
+    /// Logs info for debugging
     public func logInfo(_ message: String, context: String = "") {
         let timestamp = DateFormatter.logFormatter.string(from: Date())
         let logMessage = "[\(timestamp)] INFO in \(context): \(message)"
@@ -63,7 +63,7 @@ public final class CrashLogger {
         appendToFile(logMessage)
     }
 
-    /// Логирует критическую ошибку перед возможным крашем
+    /// Logs critical error before potential crash
     public func logCritical(_ message: String, context: String = "") {
         let timestamp = DateFormatter.logFormatter.string(from: Date())
         let logMessage = "[\(timestamp)] CRITICAL in \(context): \(message)"
@@ -94,12 +94,12 @@ public final class CrashLogger {
         }
     }
 
-    /// Получить URL файла лога
+    /// Get log file URL
     public func getLogFileURL() -> URL {
         return logFileURL
     }
 
-    /// Очистить лог файл
+    /// Clear log file
     public func clearLog() {
         let header = "PicsMinifier Crash Log\nCleared: \(Date())\n\n"
         try? header.write(to: logFileURL, atomically: true, encoding: .utf8)

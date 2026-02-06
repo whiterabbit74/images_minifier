@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 import PicsMinifierCore
+import UserNotifications
+import ServiceManagement
 
 final class AppUIManager {
 	static let shared = AppUIManager()
@@ -9,8 +11,35 @@ final class AppUIManager {
 	private var settingsWindow: NSWindow?
 	private init() {}
 
+    func applyAppearance(_ mode: AppearanceMode) {
+        // Enforce appearance on the main thread
+        if Thread.isMainThread {
+            self._applyAppearance(mode)
+        } else {
+            DispatchQueue.main.async {
+                self._applyAppearance(mode)
+            }
+        }
+    }
+
+    private func _applyAppearance(_ mode: AppearanceMode) {
+        switch mode {
+        case .light:
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        case .auto:
+            NSApp.appearance = nil
+            // Critical: We must iterate all windows and reset their appearance to nil so they inherit from system
+            for window in NSApp.windows {
+                window.appearance = nil
+                window.contentView?.needsDisplay = true
+            }
+        }
+    }
+    
 	func applyAppIcons() {
-		// Полностью пустая функция для отладки
+		// Completely empty function for debugging
 		print("✅ applyAppIcons() called successfully")
 	}
 
@@ -68,14 +97,14 @@ final class AppUIManager {
 
 	func setDockIconVisible(_ visible: Bool) {
 		if visible {
-			// Возвращаемся в обычный режим
+			// Switch back to regular mode
 			NSApp.setActivationPolicy(.regular)
 
-			// Восстанавливаем окно если оно было видно до перехода в accessory режим
+			// Restore window if it was visible before entering accessory mode
 			if windowWasVisibleBeforeAccessory {
 				DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
 					if let mainWindow = NSApp.windows.first {
-						mainWindow.level = .normal // Возвращаем обычный уровень
+						mainWindow.level = .normal // Restore normal level
 						mainWindow.makeKeyAndOrderFront(nil)
 						mainWindow.orderFrontRegardless()
 					}
@@ -83,20 +112,20 @@ final class AppUIManager {
 				windowWasVisibleBeforeAccessory = false
 			}
 		} else {
-			// Сохраняем состояние видимости главного окна и ссылку на него
+			// Save main window visibility state
 			let mainWindow = NSApp.windows.first
 			windowWasVisibleBeforeAccessory = mainWindow?.isVisible ?? false
 
 			if windowWasVisibleBeforeAccessory, let window = mainWindow {
-				// СНАЧАЛА устанавливаем floating уровень ПЕРЕД переходом в accessory
+				// FIRST set floating level BEFORE switching to accessory
 				window.level = .floating
 				window.orderFrontRegardless()
 			}
 
-			// Переходим в accessory режим (без иконки в доке)
+			// Switch to accessory mode (no dock icon)
 			NSApp.setActivationPolicy(.accessory)
 
-			// Теперь окно уже защищено floating уровнем и не должно исчезнуть
+			// Window is now protected by floating level and should not disappear
 		}
 	}
 
@@ -108,22 +137,27 @@ final class AppUIManager {
 		if visible {
 			if statusItem == nil {
 				let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-				if let image = loadMenuBarImage() {
-					// Оптимальный размер для menu bar (учитывая Retina дисплеи)
-					image.size = NSSize(width: 20, height: 20)
-					// Template image автоматически адаптируется к светлой/темной теме menu bar
-					image.isTemplate = true
-					item.button?.image = image
-				} else {
-					// Fallback эмодзи, если иконка не загрузилась
-					item.button?.title = "🗜️"
-				}
+                if let image = loadMenuBarImage() {
+                    // Optimal size for menu bar (considering Retina displays)
+                    image.size = NSSize(width: 18, height: 18) // Slightly smaller for better fit
+                    // Template image automatically adapts to light/dark menu bar theme
+                    image.isTemplate = true
+                    item.button?.image = image
+                } else {
+                    // Fallback to SF Symbol which looks much better than emoji
+                    if let image = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: "PicsMinifier") {
+                         image.isTemplate = true
+                         item.button?.image = image
+                    } else {
+                         item.button?.title = "PM"
+                    }
+                }
 				let menu = NSMenu()
-				let openApp = NSMenuItem(title: NSLocalizedString("Открыть приложение", comment: "Open App"), action: #selector(openMainWindow), keyEquivalent: "o")
+				let openApp = NSMenuItem(title: NSLocalizedString("Open App", comment: "Open App"), action: #selector(openMainWindow), keyEquivalent: "o")
 				openApp.target = self
-				let openSettings = NSMenuItem(title: NSLocalizedString("Открыть настройки…", comment: ""), action: #selector(openSettings), keyEquivalent: ",")
+				let openSettings = NSMenuItem(title: NSLocalizedString("Open Settings…", comment: ""), action: #selector(openSettings), keyEquivalent: ",")
 				openSettings.target = self
-				let quitItem = NSMenuItem(title: NSLocalizedString("Выйти", comment: ""), action: #selector(quitApp), keyEquivalent: "q")
+				let quitItem = NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quitApp), keyEquivalent: "q")
 				quitItem.target = self
 				menu.addItem(openApp)
 				menu.addItem(openSettings)
@@ -153,7 +187,7 @@ final class AppUIManager {
 		NSApp.orderFrontStandardAboutPanel(options)
 	}
 
-	/// Фиксирует размер главного окна и отключает его ресайз.
+	/// Locks main window size and disables resizing
 	func lockMainWindowSize(width: CGFloat, height: CGFloat) {
 		guard let window = NSApp.windows.first else { return }
 		let size = NSSize(width: width, height: height)
@@ -165,7 +199,7 @@ final class AppUIManager {
 		window.styleMask = style
 	}
 
-	/// Настраивает сохранение позиции окна и центрирование при первом запуске
+	/// Configures window position autosave and centering on first launch
 	func setupWindowPositionAutosave(name: String = "MainWindow") {
 		guard let window = NSApp.windows.first else { return }
 		window.setFrameAutosaveName(name)
@@ -192,10 +226,10 @@ final class AppUIManager {
 	}
 
 	@objc func openMainWindow() {
-		// Принудительно активируем приложение
+		// Force activate app
 		NSApp.activate(ignoringOtherApps: true)
 
-		// Показываем главное окно
+		// Show main window
 		if let mainWindow = NSApp.windows.first {
 			mainWindow.makeKeyAndOrderFront(nil)
 			mainWindow.orderFrontRegardless()
@@ -203,12 +237,42 @@ final class AppUIManager {
 	}
 
 	@objc func openSettings() {
-		// Сначала открываем главное окно
+		// Open main window first
 		openMainWindow()
 
-		// Отправляем уведомление для открытия настроек
+		// Post notification to open settings
 		NotificationCenter.default.post(name: .openSettings, object: nil)
 	}
+    func setLaunchAtLogin(_ enabled: Bool) {
+        // Simple Main Bundle ID check for standard apps
+        // For sandboxed apps, this usually requires a helper login item.
+        // We will try SMAppService if available (macOS 13+), else fallback to LSSharedFileList logic shim or no-op log
+        
+        if #available(macOS 13.0, *) {
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("Failed to toggle launch at login: \(error)")
+            }
+        } else {
+            // Fallback or legacy (not implemented for this audit context to avoid complexity)
+            print("Launch at login requires macOS 13+ or helper app for this codebase context.")
+        }
+    }
+
+    func showNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
 }
 
 

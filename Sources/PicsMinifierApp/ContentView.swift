@@ -8,55 +8,105 @@ struct ContentView: View {
     @StateObject private var settingsStore = SettingsStore()
     @StateObject private var sessionStore = SessionStore()
     
-    @State private var systemIsDark: Bool = false
     @State private var isTargeted: Bool = false
     @State private var confirmOverwrite: Bool = false
     @State var showingSettings: Bool = false // Keeping for now, will replace with Sidebar later
     @State var progressObserverTokens: [NSObjectProtocol] = []
     @State private var confettiCounter: Int = 0 // Trigger for confetti
+    @State private var currentTab: AppTab = .optimizer
 
     var body: some View {
         HStack(spacing: 0) {
-            // Sidebar
             SidebarView(settingsStore: settingsStore)
             
-            // Divider
             Divider()
                 .background(Color.proBorder)
             
-            // Main Content Area
-            VStack(spacing: 0) {
-                // Top Toolbar
-                HStack(spacing: 12) {
-                    Text("Batch Optimizer")
-                        .font(.system(size: 13))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.proBtnActive)
-                        .foregroundColor(Color.proTextMain) // Adaptive text
-                        .cornerRadius(4)
+            mainContent
+        }
+        .id(settingsStore.appearanceMode) // Critical: Force full view hierarchy rebuild on theme change
+        .contentShape(Rectangle())
+        .onDrop(of: [.item, .fileURL, .url, .text], delegate: AppDropDelegate(sessionStore: sessionStore, settingsStore: settingsStore, isTargeted: $isTargeted, currentTab: $currentTab))
+        .onDrop(of: [.item, .fileURL, .url, .text], delegate: AppDropDelegate(sessionStore: sessionStore, settingsStore: settingsStore, isTargeted: $isTargeted, currentTab: $currentTab))
+        .frame(minWidth: 600, minHeight: 450)
+        .onAppear(perform: setupApp)
+        .onChange(of: settingsStore.showDockIcon, perform: updateDockIcon)
+        .onChange(of: settingsStore.showMenuBarIcon, perform: updateMenuBarIcon)
+        .onChange(of: sessionStore.isProcessing) { processing in
+            if !processing && sessionStore.stats.totalInBatch > 0 && sessionStore.stats.failedFiles == 0 {
+                confettiCounter += 1
+            }
+        }
+    }
+
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            // Top Toolbar
+            HStack(spacing: 16) {
+                // Left: Tabs
+                HStack(spacing: 4) {
+                    TabButton(title: NSLocalizedString("Optimizer", comment: ""), icon: "bolt.fill", isSelected: currentTab == .optimizer) {
+                        currentTab = .optimizer
+                    }
                     
-                    Text("History")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color.proTextMuted)
+                    TabButton(title: NSLocalizedString("Statistics", comment: ""), icon: "chart.bar.fill", isSelected: currentTab == .statistics) {
+                        currentTab = .statistics
+                    }
                     
-                    Spacer()
-                    
-                    // Small status indicator
-                    if sessionStore.isProcessing {
-                        ProgressView().controlSize(.small)
-                            .scaleEffect(0.8)
+                    TabButton(title: NSLocalizedString("Settings", comment: ""), icon: "gearshape.fill", isSelected: currentTab == .settings) {
+                        currentTab = .settings
                     }
                 }
-                .padding(.horizontal, 16)
-                .frame(height: 35)
-                .background(Color.proToolbar)
-                .border(width: 1, edges: [.bottom], color: Color.proBorder)
                 
-                ZStack {
-                    // Main Background
-                    Color.proBg.ignoresSafeArea()
+                Spacer()
+                
+                // Right: Actions
+                HStack(spacing: 12) {
+                    // Progress Indicator (if processing)
+                    if sessionStore.isProcessing {
+                        ProgressView().controlSize(.small)
+                        .scaleEffect(0.8)
+                        .padding(.trailing, 8)
+                    }
                     
+                    // Theme Toggle
+                    Button(action: toggleAppearanceMode) {
+                        Image(systemName: themeIconName)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.proTextMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .buttonStyle(.plain)
+                    .help(NSLocalizedString("Toggle Theme", comment: ""))
+                    
+                    if !sessionStore.isProcessing && sessionStore.processedFiles.contains(where: { $0.status == .pending }) {
+                        Button(action: {
+                            Task { await sessionStore.startPendingCompression() }
+                        }) {
+                            Text(NSLocalizedString("Start", comment: ""))
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                                .background(Color.accentColor)
+                                .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.scale)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 44) // Slightly taller for better touch targets
+            .background(Color.proToolbar)
+            .border(width: 1, edges: [.bottom], color: Color.proBorder)
+            
+            ZStack {
+                // Main Background
+                Color.proBg.ignoresSafeArea()
+                
+                switch currentTab {
+                case .optimizer:
                     VStack(spacing: 0) {
                         if sessionStore.processedFiles.isEmpty {
                             // Drop Zone
@@ -67,36 +117,37 @@ struct ContentView: View {
                             }
                         } else {
                             // Results List
-                            ResultsTableView(files: sessionStore.processedFiles)
+                            ResultsTableView(files: sessionStore.processedFiles) {
+                                sessionStore.clearSession()
+                            }
                         }
                     }
-                    
-                    ConfettiView(counter: confettiCounter)
+                case .statistics:
+                     StatisticsView(settingsStore: settingsStore, sessionStore: sessionStore)
+                case .settings:
+                    SimpleSettingsView(
+                        preset: $settingsStore.preset,
+                        saveMode: $settingsStore.saveMode,
+                        preserveMetadata: $settingsStore.preserveMetadata,
+                        convertToSRGB: $settingsStore.convertToSRGB,
+                        enableGifsicle: $settingsStore.enableGifsicle,
+                        appearanceMode: $settingsStore.appearanceMode,
+                        showDockIcon: $settingsStore.showDockIcon,
+                        showMenuBarIcon: $settingsStore.showMenuBarIcon,
+                        customJpegQuality: $settingsStore.customJpegQuality,
+                        customPngLevel: $settingsStore.customPngLevel,
+                        customAvifQuality: $settingsStore.customAvifQuality,
+                        customAvifSpeed: $settingsStore.customAvifSpeed,
+                        customWebPQuality: $settingsStore.customWebPQuality,
+                        customWebPMethod: $settingsStore.customWebPMethod,
+                        enableSvgcleaner: $settingsStore.enableSvgcleaner
+                    )
                 }
-            }
-        }
-        .contentShape(Rectangle())
-        .onDrop(of: [.item, .fileURL, .url, .text], delegate: AppDropDelegate(sessionStore: sessionStore, settingsStore: settingsStore, isTargeted: $isTargeted))
-        .frame(minWidth: 800, minHeight: 600)
-        .modifier(AppearanceModifier(mode: settingsStore.appearanceMode))
-        .onAppear(perform: setupApp)
-        .onChange(of: settingsStore.appearanceMode, perform: handleAppearanceChange)
-        .onChange(of: settingsStore.showDockIcon, perform: updateDockIcon)
-        .onChange(of: settingsStore.showMenuBarIcon, perform: updateMenuBarIcon)
-        .onChange(of: sessionStore.isProcessing) { processing in
-            if !processing && sessionStore.stats.totalInBatch > 0 && sessionStore.stats.failedFiles == 0 {
-                confettiCounter += 1
+                
+                ConfettiView(counter: confettiCounter)
             }
         }
     }
-
-    // The mainLayout @ViewBuilder is removed as its content is now directly in body
-    // The contentStack @ViewBuilder is removed as its content is now directly in body
-    // The mainContent @ViewBuilder is removed as its content is now directly in body
-    // The headerView @ViewBuilder is removed as its content is now directly in body
-    // The centerView @ViewBuilder is removed as its content is now directly in body
-    // The footerView @ViewBuilder is removed as its content is now directly in body
-    // The globalStatsView @ViewBuilder is removed as its content is now directly in body
 
     // MARK: - Change Handlers
 
@@ -160,15 +211,11 @@ struct ContentView: View {
     }
 
     private func setupApp() {
-        AppUIManager.shared.lockMainWindowSize(width: 800, height: 600)
+        AppUIManager.shared.lockMainWindowSize(width: 600, height: 450)
         AppUIManager.shared.setupWindowPositionAutosave()
-        updateSystemTheme()
-
-        DistributedNotificationCenter.default.addObserver(
-            forName: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
-            object: nil,
-            queue: .main
-        ) { _ in updateSystemTheme() }
+        
+        // Ensure initial appearance is applied
+        AppUIManager.shared.applyAppearance(settingsStore.appearanceMode)
 
         // Bind global shortcuts via store
         sessionStore.bindEvents()
@@ -177,17 +224,8 @@ struct ContentView: View {
     // Legacy loadPreferences removed as SettingsStore handles persistence via @AppStorage
     // Legacy save handlers removed as SettingsStore handles persistence
 
-    private func handleAppearanceChange(newMode: AppearanceMode) {
-        UserDefaults.standard.set(newMode.rawValue, forKey: "ui.appearanceMode")
-        switch newMode {
-        case .light: NSApp.appearance = NSAppearance(named: .aqua)
-        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
-        case .auto:
-            NSApp.appearance = nil
-            DispatchQueue.main.async { for w in NSApp.windows { w.appearance = nil } }
-        }
-    }
-
+    // handleAppearanceChange is removed as logic is moved to SettingsStore setter
+    
     private func toggleAppearanceMode() {
         withAnimation {
             switch settingsStore.appearanceMode {
@@ -198,15 +236,43 @@ struct ContentView: View {
         }
     }
 
-    private func updateSystemTheme() {
-        let appearance = NSApp.effectiveAppearance
-        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        if systemIsDark != isDark {
-            systemIsDark = isDark
-            if settingsStore.appearanceMode == .auto {
-                DispatchQueue.main.async { NSApp.appearance = nil }
-            }
+    private var themeIconName: String {
+        switch settingsStore.appearanceMode {
+        case .light: return "sun.max.fill"
+        case .dark: return "moon.fill"
+        case .auto: return "circle.lefthalf.filled"
         }
+    }
+}
+
+enum AppTab {
+    case optimizer
+    case statistics
+    case settings
+}
+
+struct TabButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                Text(title)
+                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.proBtnActive : Color.clear)
+            .foregroundColor(isSelected ? Color.proTextMain : Color.proTextMuted)
+            .cornerRadius(6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -222,10 +288,10 @@ struct DropZoneView: View {
                 .foregroundColor(Color.proTextMuted)
             
             VStack(spacing: 5) {
-                Text("Drag files here to start batch")
+                Text(NSLocalizedString("Drag files here to start batch", comment: ""))
                     .font(.system(size: 13))
                     .foregroundColor(Color.proTextMain)
-                Text("Supports nested folders")
+                Text(NSLocalizedString("Supports nested folders", comment: ""))
                     .font(.system(size: 11))
                     .foregroundColor(Color.proTextMuted)
             }
@@ -246,24 +312,54 @@ struct ProcessingView: View {
     let isProcessing: Bool
     let currentFileName: String
     @State private var isRotating: Bool = false
+    @State private var isPulsing: Bool = false
 
     var body: some View {
         VStack(spacing: 30) {
             // Icon
             ZStack {
+                // Background Track (Subtle)
                 Circle()
-                    .stroke(Color.proTextMuted.opacity(0.2), lineWidth: 4) // Adaptive
+                    .stroke(Color.proTextMuted.opacity(0.1), lineWidth: 4)
                     .frame(width: 80, height: 80)
                 
                 if isProcessing {
+                    // 1. Outer Ripple (Expands and fades)
                     Circle()
-                        .trim(from: 0, to: 0.3)
-                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .stroke(Color.accentColor.opacity(0.4), lineWidth: 1)
+                        .frame(width: 80, height: 80)
+                        .scaleEffect(isPulsing ? 1.3 : 0.9)
+                        .opacity(isPulsing ? 0.0 : 0.5)
+                    
+                    // 2. Scanner Ring (Rotating Gradient)
+                    Circle()
+                        .trim(from: 0, to: 0.75)
+                        .stroke(
+                            AngularGradient(
+                                gradient: Gradient(colors: [.clear, Color.accentColor]),
+                                center: .center
+                            ),
+                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                        )
                         .frame(width: 80, height: 80)
                         .rotationEffect(Angle(degrees: isRotating ? 360 : 0))
+                    
+                    // 3. Inner Core (Breathing)
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                        .scaleEffect(isPulsing ? 1.0 : 0.7)
+                        
+                    // Animation Triggers
+                    Text("") // Hidden trigger
                         .onAppear {
-                            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
+                            // Rotation: Continuous linear
+                            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
                                 isRotating = true
+                            }
+                            // Pulse: Rhythmic breathing
+                            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                                isPulsing = true
                             }
                         }
                 } else {
@@ -274,7 +370,7 @@ struct ProcessingView: View {
             }
 
             VStack(spacing: 8) {
-                Text(statusTitle)
+                Text(NSLocalizedString(statusTitle, comment: ""))
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(Color.proTextMain) // Adaptive
 
@@ -316,10 +412,10 @@ struct ProcessingView: View {
 
             // Stats Grid
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                StatPip(title: "SAVED", value: ByteCountFormatter.string(fromByteCount: stats.savedBytes, countStyle: .file))
-                StatPip(title: "SUCCESS", value: "\(stats.successfulFiles)")
-                StatPip(title: "SKIPPED", value: "\(stats.skippedFiles)")
-                StatPip(title: "ERRORS", value: "\(stats.failedFiles)", isError: stats.failedFiles > 0)
+                StatPip(title: NSLocalizedString("SAVED", comment: ""), value: ByteCountFormatter.string(fromByteCount: stats.savedBytes, countStyle: .file))
+                StatPip(title: NSLocalizedString("SUCCESS", comment: ""), value: "\(stats.successfulFiles)")
+                StatPip(title: NSLocalizedString("SKIPPED", comment: ""), value: "\(stats.skippedFiles)")
+                StatPip(title: NSLocalizedString("ERRORS", comment: ""), value: "\(stats.failedFiles)", isError: stats.failedFiles > 0)
             }
             .padding(.horizontal, 40)
         }
@@ -394,27 +490,27 @@ struct AppDropDelegate: DropDelegate {
     let sessionStore: SessionStore
     let settingsStore: SettingsStore
     @Binding var isTargeted: Bool
+    @Binding var currentTab: AppTab
     
     func dropEntered(info: DropInfo) {
-        print("DEBUG: Drop entered window")
         isTargeted = true
     }
     
     func dropExited(info: DropInfo) {
-        print("DEBUG: Drop exited window")
         isTargeted = false
     }
     
     func validateDrop(info: DropInfo) -> Bool {
-        print("DEBUG: Validating drop with types: \(info.itemProviders(for: [.item]).count) providers")
         return true 
     }
     
     func performDrop(info: DropInfo) -> Bool {
         let providers = info.itemProviders(for: [.item, .fileURL, .url, .text])
-        print("DEBUG: performing drop with \(providers.count) providers")
         
-        Task {
+        Task { @MainActor in
+            // Immediately switch to Optimizer tab so user sees progress
+            currentTab = .optimizer
+            
             sessionStore.settingsStore = settingsStore
             await sessionStore.handleDrop(providers: providers)
         }

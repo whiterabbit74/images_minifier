@@ -28,15 +28,15 @@ public final class CompressionService {
 			)
 		}
 
-		// Определяем выходной путь (режим сохранения)
+		// Determine output path (save mode)
 		let outputURL = Self.computeOutputURL(for: inputURL, mode: settings.saveMode)
 
-		// Компрессия по формату без изменения контейнера
+		// Format-based compression without container change
 		let result: ProcessResult
 		if utType.conforms(to: .jpeg) {
 			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.jpeg.identifier as CFString, quality: qualityFor(settings), tiffLZW: false, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 		} else if utType.conforms(to: .png) {
-			// PNG: попытка lossless через ImageIO (уровень zlib недоступен публично)
+			// PNG: lossless attempt via ImageIO (zlib level not publicly available)
 			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.png.identifier as CFString, quality: nil, tiffLZW: false, pngLossless: true, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 		} else if utType.conforms(to: .heic) || utType.conforms(to: .heif) {
 			let heicUT: CFString = (utType.conforms(to: .heic) ? UTType.heic.identifier : UTType.heif.identifier) as CFString
@@ -44,7 +44,7 @@ public final class CompressionService {
 		} else if utType.conforms(to: .tiff) {
 			result = reencodeImageIO(inputURL: inputURL, outputURL: outputURL, destUTType: UTType.tiff.identifier as CFString, quality: nil, tiffLZW: true, pngLossless: false, preserveMetadata: settings.preserveMetadata, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 		} else if utType.conforms(to: UTType(importedAs: "org.webmproject.webp")) {
-			// WebP: системный кодек (если есть) → иначе встроенный libwebp (после вендоринга)
+			// WebP: system codec (if available) -> otherwise embedded libwebp (after vendoring)
 			let encoder = WebPEncoder()
 			switch encoder.availability() {
 			case .systemCodec:
@@ -60,7 +60,7 @@ public final class CompressionService {
 					maxDimension: settings.maxDimension
 				)
 			case .embedded:
-				result = reencodeWebPWithEmbedded(inputURL: inputURL, outputURL: outputURL, preset: settings.preset, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
+				result = reencodeWebPWithEmbedded(inputURL: inputURL, outputURL: outputURL, settings: settings, convertToSRGB: settings.convertToSRGB, maxDimension: settings.maxDimension)
 			case .unavailable:
 				// WebPCliReencoder temporarily disabled
 				// if ProcessInfo.processInfo.environment["PICS_FORCE_WEBP_CLI"] == "1" {
@@ -98,7 +98,7 @@ public final class CompressionService {
 				)
 			}
 		} else {
-			// BMP/TGA и др.: без конверсий — пропуск, если недоступна компрессия
+			// BMP/TGA etc.: no conversions - skip if compression is unavailable
 			result = ProcessResult(
 				sourceFormat: sourceFormat,
 				targetFormat: sourceFormat,
@@ -111,7 +111,7 @@ public final class CompressionService {
 			)
 		}
 
-		// Обновим агрегаты при успехе уменьшения
+		// Update aggregates on successful reduction
                 let saved = max(0, result.originalSizeBytes - result.newSizeBytes)
                 if isSuccessful(result) {
                         StatsStore.shared.addProcessed(count: 1)
@@ -130,9 +130,9 @@ public final class CompressionService {
 	private func qualityFor(_ settings: AppSettings) -> Double {
 		switch settings.preset {
 		case .custom: return settings.customJpegQuality
-		case .quality: return 0.92
-		case .balanced: return 0.85
-		case .saving: return 0.75
+		case .quality: return 0.95
+		case .balanced: return 0.88
+		case .saving: return 0.82
 		}
 	}
 
@@ -184,26 +184,26 @@ public final class CompressionService {
 			props[kCGImagePropertyTIFFDictionary] = [kCGImagePropertyTIFFCompression: 5]
 		}
 		if pngLossless {
-			props[kCGImagePropertyPNGDictionary] = [:] // Уровень zlib недоступен публично
+			props[kCGImagePropertyPNGDictionary] = [:] // zlib level not publicly available
 		}
-		// Сохранение метаданных (EXIF, IPTC, GPS, TIFF, PNG)
+		// Save metadata (EXIF, IPTC, GPS, TIFF, PNG)
 		if preserveMetadata, let allProps = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] {
 			var meta = allProps
-			// Удалим потенциально конфликтующие ключи качества/компрессии
+			// Remove potentially conflicting quality/compression keys
 			meta.removeValue(forKey: kCGImageDestinationLossyCompressionQuality)
-			// Применим sRGB мета при конверсии цвета
+			// Apply sRGB meta when converting color
 			if convertToSRGB {
 				meta[kCGImagePropertyColorModel] = kCGImagePropertyColorModelRGB
 				meta[kCGImagePropertyProfileName] = "sRGB IEC61966-2.1"
 			}
-			// Мерж исходных метаданных в props
+			// Merge original metadata into props
 			for (k, v) in meta { props[k] = v }
-			// Переустановим наши параметры после мерджа
+			// Reset our parameters after merge
 			if let q = quality { props[kCGImageDestinationLossyCompressionQuality] = q }
 			if tiffLZW { props[kCGImagePropertyTIFFDictionary] = [kCGImagePropertyTIFFCompression: 5] }
 			if pngLossless { props[kCGImagePropertyPNGDictionary] = [:] }
 		}
-		// Если конвертируем в sRGB, но метаданные не сохраняются — всё равно укажем профиль
+		// If converting to sRGB but metadata is not preserved - still specify the profile
 		if !preserveMetadata && convertToSRGB {
 			props[kCGImagePropertyColorModel] = kCGImagePropertyColorModelRGB
 			props[kCGImagePropertyProfileName] = "sRGB IEC61966-2.1"
@@ -247,7 +247,7 @@ public final class CompressionService {
                 return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: finalOutputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "success", reason: saved > 0 ? "imageio-compression" : "no-gain")
         }
 
-	private func reencodeWebPWithEmbedded(inputURL: URL, outputURL: URL, preset: CompressionPreset, convertToSRGB: Bool, maxDimension: Int?) -> ProcessResult {
+	private func reencodeWebPWithEmbedded(inputURL: URL, outputURL: URL, settings: AppSettings, convertToSRGB: Bool, maxDimension: Int?) -> ProcessResult {
 		let fm = FileManager.default
 		let originalSize = (try? fm.attributesOfItem(atPath: inputURL.path)[.size] as? NSNumber)?.int64Value ?? 0
 		let resVals = try? inputURL.resourceValues(forKeys: [.contentTypeKey])
@@ -284,7 +284,7 @@ public final class CompressionService {
 			ctx.clear(CGRect(x: 0, y: 0, width: CGFloat(dstW), height: CGFloat(dstH)))
 		}
 		let encoder = WebPEncoder()
-		let q = webPQuality(for: preset)
+		let q = webPQuality(for: settings)
 		guard let webpData = encoder.encodeRGBA(rgbaData, width: dstW, height: dstH, quality: q) else {
 			return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: inputURL.path, originalSizeBytes: originalSize, newSizeBytes: originalSize, status: "skipped", reason: "embedded-webp-encode-failed")
 		}
@@ -337,12 +337,12 @@ public final class CompressionService {
                 return ProcessResult(sourceFormat: sourceFormat, targetFormat: sourceFormat, originalPath: inputURL.path, outputPath: finalOutputURL.path, originalSizeBytes: originalSize, newSizeBytes: newSize, status: "success", reason: "webp-compression")
         }
 
-	private func webPQuality(for preset: CompressionPreset) -> Int {
-		switch preset {
-		case .custom: return 80
-		case .quality: return 90
-		case .balanced: return 80
-		case .saving: return 70
+	private func webPQuality(for settings: AppSettings) -> Int {
+		switch settings.preset {
+		case .custom: return settings.customWebPQuality
+		case .quality: return 95
+		case .balanced: return 88
+		case .saving: return 82
 		}
 	}
 

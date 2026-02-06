@@ -1,0 +1,160 @@
+/* UI Tabs */
+"Optimizer" = "最適化";
+"Statistics" = "統計";
+"Settings" = "設定";
+
+/* Settings Context */
+"GENERAL" = "一般";
+"INTERFACE" = "インターフェース";
+"Launch at Login" = "ログイン時に起動";
+"Notify on Completion" = "完了時に通知";
+"Theme" = "テーマ";
+"System" = "システム";
+"Dark" = "ダーク";
+"Light" = "ライト";
+"App Icon" = "Appアイコン";
+"Dock" = "Dock";
+"Menu Bar" = "メニューバー";
+"Both" = "両方";
+"Reset All" = "すべてリセット";
+
+/* Sidebar / Presets */
+"PRESETS" = "プリセット";
+"Base Preset" = "基本プリセット";
+"My Presets" = "マイプリセット";
+"Save Preset" = "プリセットを保存";
+"Save current configuration as:" = "現在の構成を次のように保存:";
+"My Custom Preset" = "カスタムプリセット";
+"Cancel" = "キャンセル";
+"Save" = "保存";
+"Save current settings" = "現在の設定を保存";
+
+/* Sidebar / Hints */
+"Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size." = "「バランス（推奨）」はサイズと品質の最適な組み合わせです。「品質」は詳細を優先します。「節約」はサイズを大幅に削減します。";
+"Controls clarity. 80-85%% is the 'sweet spot'—visually identical to original but much smaller. Go lower (60-70%%) only if file size is critical." = "鮮明度を制御します。80-85%が「スイートスポット」です。見た目はオリジナルと同じですが、サイズははるかに小さくなります。サイズが重要な場合のみ、60-70%に下げてください。";
+"How hard the CPU works to find patterns. Level 3 is fast. Level 9 tries everything to squeeze out bytes (can be very slow). No quality is lost." = "パターンを見つけるためにCPUがどれだけ働くか。レベル3は高速です。レベル9はバイトを絞り出すためにあらゆることを試みます（非常に遅くなる可能性があります）。品質は損なわれません。";
+"Modern format quality. Lower numbers (20-30) are excellent. Higher (50+) keep more noise/grain but produce larger files." = "モダンフォーマットの品質。低い数値（20-30）が優れています。高い数値（50以上）はノイズや粒状感を保持しますが、ファイルサイズは大きくなります。";
+"Encoding effort (0-10). Speed 0 is painfully slow but creates the smallest files. Speed 6+ is instant. Speed 4 is a good balance." = "エンコードの労力（0-10）。速度0は非常に遅いですが、最小のファイルを作成します。速度6以上は一瞬です。速度4が良いバランスです。";
+"Lossy (Gifsicle) is magic for GIFs—it can reduce size by 70%% by slightly simplifying colors. Lossless keeps every pixel but stays huge." = "ロスあり（Gifsicle）はGIFに効果的です。色をわずかに単純化することでサイズを70%削減できます。ロスレスはすべてのピクセルを保持しますが、サイズは大きいままです。";
+"Hover over settings for details." = "設定をホバーすると詳細が表示されます。";
+
+/* Sidebar / Settings */
+"JPEG Quality" = "JPEG品質";
+"PNG Safe" = "PNGセーフ";
+"AVIF Quality" = "AVIF品質";
+"AVIF Speed" = "AVIF速度";
+"GIF Mode" = "GIFモード";
+"Lossy (Gifsicle)" = "ロスあり (Gifsicle)";
+"Lossless" = "ロスレス";
+
+/* Resizing */
+"RESIZE" = "リサイズ";
+"Resize Images" = "画像をリサイズ";
+"Target Size" = "ターゲットサイズ";
+"Px" = "Px";
+"Common Sizes" = "一般的なサイズ";
+"Mode" = "モード";
+"Fit (Longest Edge)" = "フィット（長辺）";
+"Width" = "幅";
+"Height" = "高さ";
+"Shrink images to a specific size before compressing. Great for web or thumbnails." = "圧縮前に画像を特定のサイズに縮小します。Web用やサムネイルに最適です。";
+"Choose a standard size or enter a custom value." = "標準サイズを選択するか、カスタム値を入力してください。";
+"Fit keeps the aspect ratio within the box. Width/Height enforce that dimension." = "「フィット」はアスペクト比を維持します。「幅/高さ」はその寸法を強制します。";
+
+/* Workflow */
+"WORKFLOW" = "ワークフロー";
+"Direct Save" = "直接保存";
+"Keep Metadata" = "メタデータを保持";
+"Convert to sRGB" = "sRGBに変換";
+"Start compressing files immediately after dropping them. Disable to review list first." = "ファイルをドロップした後すぐに圧縮を開始します。まずリストを確認したい場合は無効にしてください。";
+"Preserve EXIF, GPS, and creation dates. Increases file size slightly. Turn off for maximum privacy/saving." = "EXIF、GPS、作成日を保持します。ファイルサイズがわずかに増加します。最大限のプライバシー/節約のためにはオフにしてください。";
+"Standardizes color profile for maximum web compatibility. Fixes 'washed out' colors in some browsers." = "Webとの互換性を最大化するためにカラープロファイルを標準化します。一部のブラウザでの色の「色あせ」を修正します。";
+
+/* Output */
+"OUTPUT" = "出力";
+"Where files go: 'Suffix' adds _min to name (safest). 'Separate Folder' keeps them organized. 'Overwrite' replaces originals (Dangerous!)." = "ファイルの保存先：「サフィックス」は名前に _min を追加します（最も安全）。「別のフォルダ」は整理して保存します。「上書き」はオリジナルを置き換えます（危険！）。";
+"Warning: Original files will be replaced and cannot be recovered." = "警告：元のファイルは置き換えられ、復元することはできません。";
+
+/* Optimizer / Main View */
+"Drag files here to start batch" = "ここにファイルをドラッグして一括処理を開始";
+"Supports nested folders" = "入れ子になったフォルダをサポート";
+"Toggle Theme" = "テーマを切り替え";
+"Start" = "開始";
+"Optimizing..." = "最適化中...";
+"Done with Errors" = "エラーありで完了";
+"Complete!" = "完了！";
+
+/* Results Table */
+"File" = "ファイル";
+"Original" = "オリジナル";
+"Optimized" = "最適化済み";
+"Savings" = "節約";
+"Status" = "ステータス";
+"Clear List" = "リストをクリア";
+"Saved" = "節約済み";
+"Pending" = "保留中";
+"Processing" = "処理中";
+"Done" = "完了";
+"Error" = "エラー";
+"Skipped" = "スキップ済み";
+"Skip" = "スキップ";
+"%d Files processed successfully" = "%d 個のファイルが正常に処理されました";
+
+/* Statistics */
+"Real-time compression metrics" = "リアルタイム圧縮メトリクス";
+"CURRENT SESSION" = "現在のセッション";
+"Session Files" = "セッションファイル";
+"Session Saved" = "セッション節約";
+"LIFETIME TOTALS" = "ライフタイム合計";
+"Total Files" = "合計ファイル";
+"Total Saved" = "合計節約";
+
+/* Additional Settings keys */
+"Appearance" = "Appearance";
+"Appearance Mode" = "Appearance Mode";
+"System Default" = "System Default";
+"Interface Mode" = "Interface Mode";
+"Show only with savings" = "Show only with savings";
+"Compression Quality" = "Compression Quality";
+"Compression Preset" = "Compression Preset";
+"Maximum Quality" = "Maximum Quality";
+"Balanced" = "Balanced";
+"Maximum Savings" = "Maximum Savings";
+"Automatic" = "Automatic";
+"File Save Mode" = "File Save Mode";
+"Add suffix '_compressed'" = "Add suffix '_compressed'";
+"Create 'Compressor' folder" = "Create 'Compressor' folder";
+"Overwrite originals" = "Overwrite originals";
+"Image Dimensions" = "Image Dimensions";
+"Max side dimension" = "Max side dimension";
+"pixels" = "pixels";
+"No limits" = "No limits";
+"Dimension limited" = "Dimension limited";
+"0 — no dimension limit" = "0 — no dimension limit";
+"Preserve metadata" = "Preserve metadata";
+"Optimize GIF" = "Optimize GIF";
+"Files processed: %lld" = "Files processed: %lld";
+"Total saved: %@" = "Total saved: %@";
+"Reset Statistics" = "Reset Statistics";
+"Supported Formats" = "Supported Formats";
+"Libraries used for file processing" = "Libraries used for file processing";
+"Improve compression!" = "Improve compression!";
+"• JPEG: install MozJPEG for +35% better compression" = "• JPEG: install MozJPEG for +35% better compression";
+"• PNG: install Oxipng for +20% better compression" = "• PNG: install Oxipng for +20% better compression";
+"• GIF: install Giflossy for +30% better compression" = "• GIF: install Giflossy for +30% better compression";
+"Command: brew install mozjpeg oxipng giflossy" = "Command: brew install mozjpeg oxipng giflossy";
+"Tools" = "Tools";
+"Check tool availability" = "Check tool availability";
+"✅ System WebP codec available" = "✅ System WebP codec available";
+"✅ Embedded WebP available" = "✅ Embedded WebP available";
+"❌ WebP unavailable" = "❌ WebP unavailable";
+"❌ gifsicle not found" = "❌ gifsicle not found";
+"✅ gifsicle: %@" = "✅ gifsicle: %@";
+"Advanced" = "Advanced";
+"CSV Log" = "CSV Log";
+"Logs Folder" = "Logs Folder";
+"Overwrite Originals" = "Overwrite Originals";
+"Files will be overwritten irrecoverably. Are you sure?" = "Files will be overwritten irrecoverably. Are you sure?";
+"Reset statistics?" = "Reset statistics?";
+"Counters will be reset and CSV log deleted. This action is irreversible." = "Counters will be reset and CSV log deleted. This action is irreversible.";
+"Reset" = "Reset";
