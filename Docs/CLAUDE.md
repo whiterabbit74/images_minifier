@@ -33,7 +33,7 @@ swift build
 
 ### Release Build (Recommended)
 ```bash
-./build_app.sh
+./build.sh
 ```
 
 ### Running the Application

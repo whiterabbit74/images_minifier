@@ -1,48 +1,218 @@
 import SwiftUI
 import PicsMinifierCore
+import Observation
 
+@Observable
 @MainActor
-class SettingsStore: ObservableObject {
-    // UI Settings
-    @AppStorage("ui.appearanceMode") var appearanceModeRaw: String = AppearanceMode.auto.rawValue
-    @AppStorage("ui.showDockIcon") var showDockIcon: Bool = true
-    @AppStorage("ui.showMenuBarIcon") var showMenuBarIcon: Bool = true
-    @AppStorage("ui.launchAtLogin") var launchAtLogin: Bool = false
-    @AppStorage("ui.notifyOnCompletion") var notifyOnCompletion: Bool = true
-    @AppStorage("ui.language") var languageRaw: String = AppLanguage.auto.rawValue
+class SettingsStore {
+    // MARK: - UI Settings Persistence
     
-    // Compression Settings
-    @AppStorage("settings.preset") var presetRaw: String = CompressionPreset.balanced.rawValue
-    @AppStorage("settings.saveMode") var saveModeRaw: String = SaveMode.suffix.rawValue
-    @AppStorage("settings.preserveMetadata") var preserveMetadata: Bool = true
-    @AppStorage("settings.convertToSRGB") var convertToSRGB: Bool = false
-    @AppStorage("settings.enableGifsicle") var enableGifsicle: Bool = true
-    @AppStorage("settings.enableGifLossy") var enableGifLossy: Bool = false
-    @AppStorage("settings.compressImmediately") var compressImmediately: Bool = true
-    @AppStorage("settings.enableSvgcleaner") var enableSvgcleaner: Bool = true
-    @AppStorage("settings.svgPrecision") private var _svgPrecision: Int = 3
-    @AppStorage("settings.svgMultipass") private var _svgMultipass: Bool = false
+    private var appearanceModeRaw: String {
+        get { UserDefaults.standard.string(forKey: "ui.appearanceMode") ?? AppearanceMode.auto.rawValue }
+        set { UserDefaults.standard.set(newValue, forKey: "ui.appearanceMode") }
+    }
     
-    // Statistics
-    @AppStorage("stats.disableStatistics") var disableStatistics: Bool = false
-    @AppStorage("stats.lifetimeCount") var lifetimeCompressedCount: Int = 0
-    @AppStorage("stats.lifetimeOriginal") var lifetimeOriginalBytes: Int = 0
-    // Storing as Int (max 2PB approx, sufficient)
-    @AppStorage("stats.lifetimeSaved") var lifetimeSavedBytes: Int = 0
-    @AppStorage("stats.formatSavings") var formatSavingsData: Data = Data()
+    var showDockIcon: Bool {
+        get {
+            access(keyPath: \.showDockIcon)
+            return UserDefaults.standard.object(forKey: "ui.showDockIcon") as? Bool ?? true
+        }
+        set {
+            withMutation(keyPath: \.showDockIcon) {
+                UserDefaults.standard.set(newValue, forKey: "ui.showDockIcon")
+            }
+        }
+    }
     
-    // Custom Settings
-    // Private Storage for Logic
-    @AppStorage("settings.customJpegQuality") private var _customJpegQuality: Double = 0.84
-    @AppStorage("settings.customPngLevel") private var _customPngLevel: Int = 4
-    @AppStorage("settings.advanced.customAvifQuality") private var _customAvifQuality: Int = 28
-    @AppStorage("settings.advanced.customAvifSpeed") private var _customAvifSpeed: Int = 3
-    @AppStorage("settings.customWebPQuality") private var _customWebPQuality: Int = 88
-    @AppStorage("settings.customWebPMethod") private var _customWebPMethod: Int = 5
+    var showMenuBarIcon: Bool {
+        get {
+            access(keyPath: \.showMenuBarIcon)
+            return UserDefaults.standard.object(forKey: "ui.showMenuBarIcon") as? Bool ?? true
+        }
+        set {
+            withMutation(keyPath: \.showMenuBarIcon) {
+                UserDefaults.standard.set(newValue, forKey: "ui.showMenuBarIcon")
+            }
+        }
+    }
     
-    // User Presets
-    @AppStorage("settings.userPresets") var userPresetsData: Data = Data()
-    @AppStorage("settings.activeUserPresetId") var activeUserPresetIdString: String = ""
+    var launchAtLogin: Bool {
+        get { UserDefaults.standard.bool(forKey: "ui.launchAtLogin") }
+        set { UserDefaults.standard.set(newValue, forKey: "ui.launchAtLogin") }
+    }
+    
+    var notifyOnCompletion: Bool {
+        get {
+            access(keyPath: \.notifyOnCompletion)
+            return UserDefaults.standard.object(forKey: "ui.notifyOnCompletion") as? Bool ?? true
+        }
+        set {
+            withMutation(keyPath: \.notifyOnCompletion) {
+                UserDefaults.standard.set(newValue, forKey: "ui.notifyOnCompletion")
+            }
+        }
+    }
+    
+    var playSoundOnCompletion: Bool {
+        get {
+            access(keyPath: \.playSoundOnCompletion)
+            return UserDefaults.standard.object(forKey: "ui.playSoundOnCompletion") as? Bool ?? true
+        }
+        set {
+            withMutation(keyPath: \.playSoundOnCompletion) {
+                UserDefaults.standard.set(newValue, forKey: "ui.playSoundOnCompletion")
+            }
+        }
+    }
+    
+    var languageRaw: String {
+        get { UserDefaults.standard.string(forKey: "ui.language") ?? AppLanguage.auto.rawValue }
+        set { UserDefaults.standard.set(newValue, forKey: "ui.language") }
+    }
+    
+    // MARK: - Compression Settings Persistence
+    
+    var presetRaw: String {
+        get { UserDefaults.standard.string(forKey: "settings.preset") ?? CompressionPreset.balanced.rawValue }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.preset") }
+    }
+    
+    var saveModeRaw: String {
+        get { UserDefaults.standard.string(forKey: "settings.saveMode") ?? SaveMode.suffix.rawValue }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.saveMode") }
+    }
+    
+    var preserveMetadata: Bool {
+        get { UserDefaults.standard.object(forKey: "settings.preserveMetadata") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.preserveMetadata") }
+    }
+    
+    var convertToSRGB: Bool {
+        get { UserDefaults.standard.bool(forKey: "settings.convertToSRGB") }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.convertToSRGB") }
+    }
+    
+    var enableGifsicle: Bool {
+        get { UserDefaults.standard.object(forKey: "settings.enableGifsicle") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.enableGifsicle") }
+    }
+    
+    var enableGifLossy: Bool {
+        get { UserDefaults.standard.bool(forKey: "settings.enableGifLossy") }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.enableGifLossy") }
+    }
+    
+    var compressImmediately: Bool {
+        get { UserDefaults.standard.object(forKey: "settings.compressImmediately") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.compressImmediately") }
+    }
+    
+    var enableSvgcleaner: Bool {
+        get { UserDefaults.standard.object(forKey: "settings.enableSvgcleaner") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.enableSvgcleaner") }
+    }
+    
+    var svgPrecision: Int {
+        get { 
+            let val = UserDefaults.standard.integer(forKey: "settings.svgPrecision")
+            return val == 0 ? 3 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.svgPrecision") }
+    }
+    
+    var svgMultipass: Bool {
+        get { UserDefaults.standard.bool(forKey: "settings.svgMultipass") }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.svgMultipass") }
+    }
+    
+    // MARK: - Statistics Persistence
+    
+    var disableStatistics: Bool {
+        get { UserDefaults.standard.bool(forKey: "stats.disableStatistics") }
+        set { UserDefaults.standard.set(newValue, forKey: "stats.disableStatistics") }
+    }
+    
+    var lifetimeCompressedCount: Int {
+        get { UserDefaults.standard.integer(forKey: "stats.lifetimeCount") }
+        set { UserDefaults.standard.set(newValue, forKey: "stats.lifetimeCount") }
+    }
+    
+    var lifetimeOriginalBytes: Int {
+        get { UserDefaults.standard.integer(forKey: "stats.lifetimeOriginal") }
+        set { UserDefaults.standard.set(newValue, forKey: "stats.lifetimeOriginal") }
+    }
+    
+    var lifetimeSavedBytes: Int {
+        get { UserDefaults.standard.integer(forKey: "stats.lifetimeSaved") }
+        set { UserDefaults.standard.set(newValue, forKey: "stats.lifetimeSaved") }
+    }
+    
+    var formatSavingsData: Data {
+        get { UserDefaults.standard.data(forKey: "stats.formatSavings") ?? Data() }
+        set { UserDefaults.standard.set(newValue, forKey: "stats.formatSavings") }
+    }
+    
+    // MARK: - Custom Compression Logic
+    
+    private var _customJpegQuality: Double {
+        get { 
+            let val = UserDefaults.standard.double(forKey: "settings.customJpegQuality")
+            return val == 0 ? 0.84 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.customJpegQuality") }
+    }
+    
+    private var _customPngLevel: Int {
+        get { 
+            let val = UserDefaults.standard.integer(forKey: "settings.customPngLevel")
+            return val == 0 ? 4 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.customPngLevel") }
+    }
+    
+    private var _customAvifQuality: Int {
+        get { 
+            let val = UserDefaults.standard.integer(forKey: "settings.advanced.customAvifQuality")
+            return val == 0 ? 28 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.advanced.customAvifQuality") }
+    }
+    
+    private var _customAvifSpeed: Int {
+        get { 
+            let val = UserDefaults.standard.integer(forKey: "settings.advanced.customAvifSpeed")
+            return val == 0 ? 3 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.advanced.customAvifSpeed") }
+    }
+    
+    private var _customWebPQuality: Int {
+        get { 
+            let val = UserDefaults.standard.integer(forKey: "settings.customWebPQuality")
+            return val == 0 ? 88 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.customWebPQuality") }
+    }
+    
+    private var _customWebPMethod: Int {
+        get { 
+            let val = UserDefaults.standard.integer(forKey: "settings.customWebPMethod")
+            return val == 0 ? 5 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.customWebPMethod") }
+    }
+    
+    // MARK: - User Presets
+    
+    var userPresetsData: Data {
+        get { UserDefaults.standard.data(forKey: "settings.userPresets") ?? Data() }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.userPresets") }
+    }
+    
+    var activeUserPresetIdString: String {
+        get { UserDefaults.standard.string(forKey: "settings.activeUserPresetId") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.activeUserPresetId") }
+    }
     
     var activeUserPresetId: UUID? {
         get { UUID(uuidString: activeUserPresetIdString) }
@@ -60,16 +230,12 @@ class SettingsStore: ObservableObject {
     }
     
     func saveCurrentAsPreset(name: String) {
-        print("Saving preset: \(name)")
         let newPreset = UserPreset(name: name, settings: self.settings)
         var current = userPresets
         current.append(newPreset)
         userPresets = current
-        
-        // Force UI update and switch to custom
         preset = .custom
         activeUserPresetId = newPreset.id
-        objectWillChange.send() 
     }
     
     func deletePreset(id: UUID) {
@@ -83,33 +249,45 @@ class SettingsStore: ObservableObject {
         _customPngLevel = userPreset.customPngLevel
         _customAvifQuality = userPreset.customAvifQuality
         _customAvifSpeed = userPreset.customAvifSpeed
-        _customAvifSpeed = userPreset.customAvifSpeed
         _customWebPQuality = userPreset.customWebPQuality
         _customWebPMethod = userPreset.customWebPMethod
         enableSvgcleaner = userPreset.enableSvgcleaner
-        _svgPrecision = userPreset.svgPrecision
-        _svgMultipass = userPreset.svgMultipass
+        svgPrecision = userPreset.svgPrecision
+        svgMultipass = userPreset.svgMultipass
         enableGifsicle = userPreset.enableGifsicle
         preserveMetadata = userPreset.preserveMetadata
         convertToSRGB = userPreset.convertToSRGB
-        
-        // Set mode to custom effectively
         preset = .custom
         activeUserPresetId = userPreset.id
-        objectWillChange.send()
     }
     
-    // Resizing
-    @AppStorage("settings.resize.enabled") var resizeEnabled: Bool = false
-    @AppStorage("settings.resize.value") var resizeValue: Int = 1920
-    @AppStorage("settings.resize.condition") var resizeConditionRaw: String = ResizeCondition.fit.rawValue
+    // MARK: - Resizing Settings
+    
+    var resizeEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "settings.resize.enabled") }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.resize.enabled") }
+    }
+    
+    var resizeValue: Int {
+        get { 
+            let val = UserDefaults.standard.integer(forKey: "settings.resize.value")
+            return val == 0 ? 1920 : val
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.resize.value") }
+    }
+    
+    var resizeConditionRaw: String {
+        get { UserDefaults.standard.string(forKey: "settings.resize.condition") ?? ResizeCondition.fit.rawValue }
+        set { UserDefaults.standard.set(newValue, forKey: "settings.resize.condition") }
+    }
     
     var resizeCondition: ResizeCondition {
         get { ResizeCondition(rawValue: resizeConditionRaw) ?? .fit }
         set { resizeConditionRaw = newValue.rawValue }
     }
     
-    // Public Accessors with Auto-Switch Logic
+    // MARK: - Public Accessors with Custom logic
+    
     var customJpegQuality: Double {
         get { _customJpegQuality }
         set {
@@ -172,80 +350,58 @@ class SettingsStore: ObservableObject {
         }
     }
 
-    var svgPrecision: Int {
-        get { _svgPrecision }
-        set {
-            let clamped = max(0, min(10, newValue))
-            if _svgPrecision != clamped {
-                _svgPrecision = clamped
-                switchToCustomIfNeeded()
-            }
-        }
-    }
-
-    var svgMultipass: Bool {
-        get { _svgMultipass }
-        set {
-            if _svgMultipass != newValue {
-                _svgMultipass = newValue
-                switchToCustomIfNeeded()
-            }
-        }
-    }
-    
     private func switchToCustomIfNeeded() {
         if preset != .custom {
             preset = .custom
         }
-        // If we were on a named preset, we are now modified, so drop the name linkage
-        // (Or we could keep it and add "Modified" in UI, but simple for now)
         if activeUserPresetId != nil {
             activeUserPresetId = nil
         }
     }
     
-    // Accessors for Enums
-    // We use a private backing store for the actual persistence
-    @AppStorage("ui.appearanceMode") private var internalAppearanceModeRaw: String = AppearanceMode.auto.rawValue
-    
-    // Public proxy that triggers the immediate UI update
     var appearanceMode: AppearanceMode {
-        get { AppearanceMode(rawValue: internalAppearanceModeRaw) ?? .auto }
-        set {
-            // 1. Trigger the global appearance update IMMEDIATELY
-            AppUIManager.shared.applyAppearance(newValue)
-            
-            // 2. Persist the value (which might trigger SwiftUI updates, but the global state is now correct)
-            internalAppearanceModeRaw = newValue.rawValue
+        get {
+            access(keyPath: \.appearanceMode)
+            return AppearanceMode(rawValue: appearanceModeRaw) ?? .auto
         }
-    }
-    
-    var language: AppLanguage {
-        get { AppLanguage(rawValue: languageRaw) ?? .auto }
         set {
-            languageRaw = newValue.rawValue
-            LanguageManager.shared.applyLanguage(newValue)
-            // Note: Most apps require restart for AppleLanguages to take full effect
-            // but we apply it to defaults correctly here.
-        }
-    }
-    
-    var preset: CompressionPreset {
-        get { CompressionPreset(rawValue: presetRaw) ?? .balanced }
-        set { 
-            presetRaw = newValue.rawValue
-            // Only apply values if NOT custom. If keeping custom, we keep current values.
-            if newValue != .custom {
-                applyPresetValues(newValue)
-                activeUserPresetId = nil // Clear user preset linkage
+            withMutation(keyPath: \.appearanceMode) {
+                AppUIManager.shared.applyAppearance(newValue)
+                appearanceModeRaw = newValue.rawValue
             }
         }
     }
     
-    // ...
-
+    var language: AppLanguage {
+        get {
+            access(keyPath: \.language)
+            return AppLanguage(rawValue: languageRaw) ?? .auto
+        }
+        set {
+            withMutation(keyPath: \.language) {
+                languageRaw = newValue.rawValue
+                LanguageManager.shared.applyLanguage(newValue)
+            }
+        }
+    }
+    
+    var preset: CompressionPreset {
+        get {
+            access(keyPath: \.preset)
+            return CompressionPreset(rawValue: presetRaw) ?? .balanced
+        }
+        set { 
+            withMutation(keyPath: \.preset) {
+                presetRaw = newValue.rawValue
+                if newValue != .custom {
+                    applyPresetValues(newValue)
+                    activeUserPresetId = nil
+                }
+            }
+        }
+    }
+    
     private func applyPresetValues(_ preset: CompressionPreset) {
-        // Prevent feedback loop: Direct access to underlying storage
         switch preset {
         case .quality:
             _customJpegQuality = 0.92
@@ -254,8 +410,8 @@ class SettingsStore: ObservableObject {
             _customAvifSpeed = 2
             _customWebPQuality = 95
             _customWebPMethod = 6
-            _svgPrecision = 4
-            _svgMultipass = false
+            svgPrecision = 4
+            svgMultipass = false
         case .balanced:
             _customJpegQuality = 0.84
             _customPngLevel = 4
@@ -263,8 +419,8 @@ class SettingsStore: ObservableObject {
             _customAvifSpeed = 3
             _customWebPQuality = 88
             _customWebPMethod = 5
-            _svgPrecision = 3
-            _svgMultipass = false
+            svgPrecision = 3
+            svgMultipass = false
         case .saving:
             _customJpegQuality = 0.72
             _customPngLevel = 6 
@@ -272,8 +428,8 @@ class SettingsStore: ObservableObject {
             _customAvifSpeed = 4
             _customWebPQuality = 82
             _customWebPMethod = 5
-            _svgPrecision = 2
-            _svgMultipass = true
+            svgPrecision = 2
+            svgMultipass = true
         default:
             break
         }
@@ -299,11 +455,9 @@ class SettingsStore: ObservableObject {
         showMenuBarIcon = true
         resizeEnabled = false
         resizeValue = 1920
-        resizeValue = 1920
         resizeCondition = .fit
         compressImmediately = true
-        
-        // These are reset by setting preset to .balanced above
+        playSoundOnCompletion = true
     }
     
     var settings: AppSettings {
@@ -327,7 +481,6 @@ class SettingsStore: ObservableObject {
         
         s.resizeEnabled = resizeEnabled
         s.resizeValue = resizeValue
-        s.resizeValue = resizeValue
         s.resizeCondition = resizeCondition
         s.compressImmediately = compressImmediately
         
@@ -338,15 +491,12 @@ class SettingsStore: ObservableObject {
         get { launchAtLogin }
         set {
             launchAtLogin = newValue
-            // TODO: Call AppUIManager to handle actual logic
-             AppUIManager.shared.setLaunchAtLogin(newValue)
+            AppUIManager.shared.setLaunchAtLogin(newValue)
         }
     }
 
-    // Statistics Helpers
     func updateFormatSavings(extension ext: String, savedBytes: Int) {
         guard !disableStatistics else { return }
-        
         var current = formatSavings
         let key = ext.lowercased()
         current[key] = (current[key] ?? 0) + savedBytes

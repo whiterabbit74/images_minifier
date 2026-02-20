@@ -25,7 +25,7 @@ struct ConfettiView: View {
         .onReceive(timer) { _ in
             updateParticles()
         }
-        .onChange(of: counter) { _ in
+        .onChange(of: counter) { _, _ in
             burst()
         }
         .allowsHitTesting(false)

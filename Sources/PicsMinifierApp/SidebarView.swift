@@ -2,12 +2,11 @@ import SwiftUI
 import PicsMinifierCore
 
 struct SidebarView: View {
-    @ObservedObject var settingsStore: SettingsStore
+    @Bindable var settingsStore: SettingsStore
     @Environment(\.colorScheme) var colorScheme
     @State private var hoverInfo: String = ""
     @State private var isShowingSavePresetAlert = false
     @State private var newPresetName = ""
-    @State private var showRestartHint = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -19,7 +18,7 @@ struct SidebarView: View {
                             // Main Preset
                             SidebarOptionRow(title: NSLocalizedString("Preset", comment: ""), hint: NSLocalizedString("Balanced (recommended) is the best mix of size and quality. Quality prioritizes details. Saving aggressively reduces size.", comment: ""), onHover: updateHover) {
                                 Menu {
-                                    ForEach(CompressionPreset.allCases.filter { $0 != .custom }, id: \.self) { preset in
+                                    ForEach(filteredPresets, id: \.self) { preset in
                                         Button(NSLocalizedString(preset.rawValue.capitalized, comment: "")) { settingsStore.preset = preset }
                                     }
                                     
@@ -309,6 +308,10 @@ struct SidebarView: View {
         .border(width: 1, edges: [.trailing], color: Color.proBorder)
     }
     
+    private var filteredPresets: [CompressionPreset] {
+        CompressionPreset.allCases.filter { $0 != .custom }
+    }
+    
     private func savePresetAndClose() {
         if !newPresetName.isEmpty {
             settingsStore.saveCurrentAsPreset(name: newPresetName)
@@ -393,7 +396,7 @@ struct SidebarOptionRow<Content: View>: View {
             Spacer()
             valueContent
                 .font(.system(size: 12))
-                .foregroundColor(Color.proTextMain)
+                .foregroundStyle(Color.proTextMain)
                 .menuStyle(.borderlessButton)
                 .fixedSize()
         }

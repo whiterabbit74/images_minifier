@@ -4,6 +4,8 @@ import PicsMinifierCore
 import UserNotifications
 import ServiceManagement
 
+@Observable
+@MainActor
 final class AppUIManager {
 	static let shared = AppUIManager()
 
@@ -12,14 +14,8 @@ final class AppUIManager {
 	private init() {}
 
     func applyAppearance(_ mode: AppearanceMode) {
-        // Enforce appearance on the main thread
-        if Thread.isMainThread {
-            self._applyAppearance(mode)
-        } else {
-            DispatchQueue.main.async {
-                self._applyAppearance(mode)
-            }
-        }
+        // AppUIManager is @MainActor, so this is safe
+        self._applyAppearance(mode)
     }
 
     private func _applyAppearance(_ mode: AppearanceMode) {
@@ -45,52 +41,46 @@ final class AppUIManager {
 
 	private var cachedMenuBarImage: NSImage?
     
-    private func loadMenuBarImage() -> NSImage? {
+    // Move to background
+    private func loadMenuBarImage() async -> NSImage? {
         if let cached = cachedMenuBarImage { return cached }
         
-        let bundle = Bundle.main
+        return await Task.detached(priority: .userInitiated) { [weak self] () -> NSImage? in
+            let bundle = Bundle.main
 
-        // Priority 1: Check for vector PDF icon (copied as compression_icon.pdf)
-        if let imgURL = bundle.url(forResource: "compression_icon", withExtension: "pdf"),
-           let image = NSImage(contentsOf: imgURL) {
-            cachedMenuBarImage = image
-            return image
-        }
-        
-        // Priority 2: Check for specific menu bar icon (PNG)
-        if let imgURL = bundle.url(forResource: "menu_bar_icon", withExtension: "png"),
-           let image = NSImage(contentsOf: imgURL) {
-            cachedMenuBarImage = image
-            return image
-        }
-
-        // Try to load app icon sizes for menu bar - start with smaller sizes
-        let iconSizes = ["32", "16", "64", "128"]
-
-        for size in iconSizes {
-            if let imgURL = bundle.url(forResource: size, withExtension: "png", subdirectory: "Assets.xcassets/AppIcon.appiconset"),
+            // Priority 1: Check for vector PDF icon (copied as compression_icon.pdf)
+            if let imgURL = bundle.url(forResource: "compression_icon", withExtension: "pdf"),
                let image = NSImage(contentsOf: imgURL) {
-                cachedMenuBarImage = image
                 return image
             }
-        }
-
-        // Fallback: try to load from Resources directory
-        for size in iconSizes {
-            if let imgURL = bundle.url(forResource: size, withExtension: "png"),
+            
+            // Priority 2: Check for specific menu bar icon (PNG)
+            if let imgURL = bundle.url(forResource: "menu_bar_icon", withExtension: "png"),
                let image = NSImage(contentsOf: imgURL) {
-                cachedMenuBarImage = image
                 return image
             }
-        }
 
-        // Last fallback: try to get app icon
-        if let appIcon = NSApp.applicationIconImage {
-            cachedMenuBarImage = appIcon
-            return appIcon
-        }
+            // Try to load app icon sizes for menu bar - start with smaller sizes
+            let iconSizes = ["32", "16", "64", "128"]
 
-        return nil
+            for size in iconSizes {
+                if let imgURL = bundle.url(forResource: size, withExtension: "png", subdirectory: "Assets.xcassets/AppIcon.appiconset"),
+                   let image = NSImage(contentsOf: imgURL) {
+                    return image
+                }
+            }
+
+            // Fallback: try to load from Resources directory
+            for size in iconSizes {
+                if let imgURL = bundle.url(forResource: size, withExtension: "png"),
+                   let image = NSImage(contentsOf: imgURL) {
+                    return image
+                }
+            }
+
+            // Last fallback: try to get app icon
+            return await MainActor.run { NSApp.applicationIconImage }
+        }.value
     }
 
 	private var windowWasVisibleBeforeAccessory = false
@@ -137,21 +127,25 @@ final class AppUIManager {
 		if visible {
 			if statusItem == nil {
 				let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-                if let image = loadMenuBarImage() {
-                    // Optimal size for menu bar (considering Retina displays)
-                    image.size = NSSize(width: 18, height: 18) // Slightly smaller for better fit
-                    // Template image automatically adapts to light/dark menu bar theme
-                    image.isTemplate = true
-                    item.button?.image = image
-                } else {
-                    // Fallback to SF Symbol which looks much better than emoji
-                    if let image = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: "PicsMinifier") {
-                         image.isTemplate = true
-                         item.button?.image = image
+                
+                Task {
+                    if let image = await loadMenuBarImage() {
+                        // Optimal size for menu bar (considering Retina displays)
+                        image.size = NSSize(width: 18, height: 18) // Slightly smaller for better fit
+                        // Template image automatically adapts to light/dark menu bar theme
+                        image.isTemplate = true
+                        item.button?.image = image
                     } else {
-                         item.button?.title = "PM"
+                        // Fallback to SF Symbol which looks much better than emoji
+                        if let image = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: "PicsMinifier") {
+                             image.isTemplate = true
+                             item.button?.image = image
+                        } else {
+                             item.button?.title = "PM"
+                        }
                     }
                 }
+                
 				let menu = NSMenu()
 				let openApp = NSMenuItem(title: NSLocalizedString("Open App", comment: "Open App"), action: #selector(openMainWindow), keyEquivalent: "o")
 				openApp.target = self
@@ -272,6 +266,11 @@ final class AppUIManager {
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
+    }
+
+    func playCompletionSound() {
+        // "Glass" is a subtle, high-quality system sound on macOS
+        NSSound(named: "Glass")?.play()
     }
 }
 

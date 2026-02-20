@@ -4,7 +4,7 @@ import Mach
 #endif
 
 /// Primary interface for all compression operations with security and performance optimization
-public final class SecureIntegrationLayer {
+public actor SecureIntegrationLayer {
     public static let shared = SecureIntegrationLayer()
 
     private let statsStore: SafeStatsStore
@@ -40,14 +40,11 @@ public final class SecureIntegrationLayer {
     public func compressFiles(
         urls: [URL],
         settings: AppSettings,
-        progressCallback: @escaping (Int, Int, String) -> Void = { _, _, _ in },
+        progressCallback: @escaping (Int, Int, URL?, ProcessResult?) -> Void = { _, _, _, _ in },
         completion: @escaping ([ProcessResult]) -> Void
     ) -> Task<Void, Never> {
-        // Use Task.detached to ensure we don't inherit MainActor context
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return }
-            // Since we are detached, 'self' capture needs care if self is actor-isolated. 
-            // SecureIntegrationLayer is a class, so it's fine, but we must be thread-safe.
             
             let results = await self.processFiles(urls: urls, settings: settings, progressCallback: progressCallback)
             
@@ -56,18 +53,25 @@ public final class SecureIntegrationLayer {
             }
         }
 
-        currentTask = task
+        Task {
+            setTask(task)
+        }
         return task
+    }
+
+    private func setTask(_ task: Task<Void, Never>) {
+        self.currentTask = task
     }
 
     public func cancelCompression() {
         currentTask?.cancel()
+        currentTask = nil
     }
 
     private func processFiles(
         urls: [URL],
         settings: AppSettings,
-        progressCallback: @escaping (Int, Int, String) -> Void
+        progressCallback: @escaping (Int, Int, URL?, ProcessResult?) -> Void
     ) async -> [ProcessResult] {
         var results: [ProcessResult] = []
         let totalFiles = urls.count
@@ -75,7 +79,7 @@ public final class SecureIntegrationLayer {
 
         if urls.isEmpty {
             await MainActor.run {
-                progressCallback(0, 0, "")
+                progressCallback(0, 0, nil, nil)
             }
             return []
         }
@@ -84,6 +88,8 @@ public final class SecureIntegrationLayer {
         let batchSize = max(1, min(maxConcurrentOperations, urls.count))
 
         for i in stride(from: 0, to: urls.count, by: batchSize) {
+            if Task.isCancelled { break }
+            
             let batch = Array(urls[i..<min(i + batchSize, urls.count)])
             let batchResults = await processBatch(
                 batch: batch, 
@@ -96,8 +102,8 @@ public final class SecureIntegrationLayer {
             results.append(contentsOf: batchResults)
             processedCount += batchResults.count
 
-            // Update progress - callback already handles thread hopping or SessionStore handles it
-            progressCallback(processedCount, totalFiles, "")
+            // Update progress (batch transition)
+            progressCallback(processedCount, totalFiles, nil, nil)
         }
 
         // Update statistics
@@ -117,15 +123,14 @@ public final class SecureIntegrationLayer {
         settings: AppSettings, 
         baseCount: Int, 
         total: Int, 
-        progressCallback: @escaping (Int, Int, String) -> Void
+        progressCallback: @escaping (Int, Int, URL?, ProcessResult?) -> Void
     ) async -> [ProcessResult] {
         return await withTaskGroup(of: ProcessResult?.self, returning: [ProcessResult].self) { group in
             var results: [ProcessResult] = []
 
             for url in batch {
-                let filename = url.lastPathComponent
                 group.addTask {
-                    progressCallback(baseCount, total, filename)
+                    progressCallback(baseCount, total, url, nil) // Started
                     return await self.processFile(url: url, settings: settings)
                 }
             }
@@ -135,6 +140,10 @@ public final class SecureIntegrationLayer {
                     results.append(result)
                     // Log result securely
                     self.logger.log(result)
+                    
+                    // Notify individual completion
+                    let url = URL(fileURLWithPath: result.originalPath)
+                    progressCallback(baseCount, total, url, result)
                 }
             }
 
@@ -256,6 +265,7 @@ public final class SecureIntegrationLayer {
         return normalized == "success" || normalized == "ok"
     }
 }
+
 
 // MARK: - Supporting Types
 

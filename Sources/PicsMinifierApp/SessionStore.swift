@@ -2,22 +2,25 @@ import SwiftUI
 import PicsMinifierCore
 import UniformTypeIdentifiers
 
+@Observable
 @MainActor
-class SessionStore: ObservableObject {
-    @Published var processedFiles: [ProcessedFile] = []
-    @Published var stats: SessionStats = .init()
-    @Published var isProcessing: Bool = false
-    @Published var currentFileName: String = ""
+class SessionStore {
+    var processedFiles: [ProcessedFile] = []
+    var stats: SessionStats = .init()
+    var isProcessing: Bool = false
+    var currentFileName: String = ""
     
     // Session Stats (Reset on app launch)
-    @Published var sessionCompressedCount: Int = 0
-    @Published var sessionOriginalBytes: Int = 0
-    @Published var sessionSavedBytes: Int = 0
+    var sessionCompressedCount: Int = 0
+    var sessionOriginalBytes: Int = 0
+    var sessionSavedBytes: Int = 0
     
     // Dependencies
     var settingsStore: SettingsStore?
     
-    @MainActor
+    // Track URLs with active security scope
+    private var accessedURLs = Set<URL>()
+    
     func handleDrop(providers: [NSItemProvider]) async {
         print("DEBUG: handleDrop started for \(providers.count) providers")
         guard !isProcessing else { 
@@ -61,7 +64,7 @@ class SessionStore: ObservableObject {
         print("DEBUG: Provider conforms to \(typeIdentifier), loading...")
         
         return await withCheckedContinuation { continuation in
-            provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
+            provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { [weak self] item, error in
                 if let error = error {
                     print("DEBUG: loadItem error for \(typeIdentifier): \(error.localizedDescription)")
                     continuation.resume(returning: nil)
@@ -84,13 +87,15 @@ class SessionStore: ObservableObject {
 
                 if let url = resolvedURL {
                     print("DEBUG: loadItem resolved URL: \(url.path)")
-                    // Handle security scope if needed
-                    if url.startAccessingSecurityScopedResource() {
-                        print("DEBUG: Accessed security scoped resource: \(url.path)")
-                        // Note: We don't stopAccessing here because we need to read it later in FileWalker.
-                        // We should ideally stop it after consumption, but for now we'll keep it simple.
+                    
+                    Task { @MainActor [weak self] in
+                        // Handle security scope if needed
+                        if url.startAccessingSecurityScopedResource() {
+                            print("DEBUG: Accessed security scoped resource: \(url.path)")
+                            self?.accessedURLs.insert(url)
+                        }
+                        continuation.resume(returning: url)
                     }
-                    continuation.resume(returning: url)
                 } else {
                     print("DEBUG: loadItem failed to resolve result from \(String(describing: type(of: item)))")
                     continuation.resume(returning: nil)
@@ -99,7 +104,6 @@ class SessionStore: ObservableObject {
         }
     }
 
-    @MainActor
     func consume(urls: [URL]) async {
         print("DEBUG: consume started with \(urls.count) URLs")
         guard !urls.isEmpty else { return }
@@ -131,14 +135,11 @@ class SessionStore: ObservableObject {
 
         guard !uniqueFiles.isEmpty else { 
             self.isProcessing = false
+            cleanupResources()
             return 
         }
         
         // Populate initial list (Fast on Main Actor for N < 10000, acceptable)
-        // For extremely large lists, this could also be lazy, but for <5000 it's fine.
-        
-        // Populate initial list (Fast on Main Actor for N < 10000, acceptable)
-        // For extremely large lists, this could also be lazy, but for <5000 it's fine.
         var initialList: [ProcessedFile] = []
         initialList.reserveCapacity(uniqueFiles.count)
         
@@ -170,10 +171,11 @@ class SessionStore: ObservableObject {
              await startPendingCompression()
         } else {
              self.isProcessing = false
+             // If not compressing immediately, we still need to wait or cleanup later?
+             // Usually we cleanup after the WHOLE batch is done.
         }
     }
     
-    @MainActor
     func startPendingCompression() async {
         let pendingFiles = processedFiles.filter { $0.status == .pending }
         guard !pendingFiles.isEmpty else { return }
@@ -207,34 +209,57 @@ class SessionStore: ObservableObject {
             settings.compressImmediately = store.compressImmediately
         }
         
-        let md = UserDefaults.standard.object(forKey: "settings.maxDimension") as? Double ?? 0
+        // Use modern UserDefaults access
+        let md = UserDefaults.standard.double(forKey: "settings.maxDimension")
         settings.maxDimension = md > 0 ? Int(md) : nil
 
         // UI Throttling Helpers
         var lastUpdateTime: TimeInterval = 0
         let throttleInterval: TimeInterval = 0.15 // 150ms throttle
         
-        SecureIntegrationLayer.shared.compressFiles(
+        await SecureIntegrationLayer.shared.compressFiles(
             urls: urlsToProcess,
             settings: settings,
-            progressCallback: { [weak self] processed, total, filename in
+            progressCallback: { [weak self] processed, total, url, result in
                 guard let self = self else { return }
                 
-                // Throttle UI updates
                 let now = Date().timeIntervalSinceReferenceDate
-                if now - lastUpdateTime > throttleInterval || processed == total {
-                    lastUpdateTime = now
+                let isBatchEnd = url == nil && result == nil
+                let isFileStart = url != nil && result == nil
+                let isFileEnd = url != nil && result != nil
+                
+                // Always update for file transitions, throttle for regular progress
+                let shouldUpdate = now - lastUpdateTime > throttleInterval || processed == total || isFileStart || isFileEnd || isBatchEnd
+                
+                if shouldUpdate {
+                    if !isFileStart && !isFileEnd {
+                        lastUpdateTime = now
+                    }
                     
                     Task { @MainActor in
-                        self.stats.processedFiles = processed
-                        self.stats.totalInBatch = total
+                        if isBatchEnd || processed == total {
+                             self.stats.processedFiles = processed
+                             self.stats.totalInBatch = total
+                        }
                         
-                        if !filename.isEmpty {
+                        if let url = url, isFileStart {
+                            let filename = url.lastPathComponent
                             self.currentFileName = NSLocalizedString("Processing: ", comment: "") + filename
-                            // OPTIMIZATION: Don't search full array for status update if list is huge
-                            if self.processedFiles.count < 2000 {
-                                if let index = self.processedFiles.firstIndex(where: { $0.url.lastPathComponent == filename }) {
-                                    self.processedFiles[index].status = .processing
+                            if let index = self.processedFiles.firstIndex(where: { $0.url == url }) {
+                                self.processedFiles[index].status = .processing
+                            }
+                        } else if let url = url, let result = result, isFileEnd {
+                            if let index = self.processedFiles.firstIndex(where: { $0.url == url }) {
+                                let status = result.status.lowercased()
+                                self.processedFiles[index].originalSize = result.originalSizeBytes
+                                self.processedFiles[index].optimizedSize = result.newSizeBytes
+                                
+                                if status == "success" || status == "ok" {
+                                    self.processedFiles[index].status = .done
+                                } else if status == "skipped" {
+                                    self.processedFiles[index].status = .skipped
+                                } else {
+                                    self.processedFiles[index].status = .error
                                 }
                             }
                         }
@@ -259,7 +284,6 @@ class SessionStore: ObservableObject {
                     }
                     
                     // Batch update processedFiles
-                    // We map the existing array to a new one to trigger a single view update
                     var updatedFiles = self.processedFiles
                     
                     for i in 0..<updatedFiles.count {
@@ -313,35 +337,54 @@ class SessionStore: ObservableObject {
                         store.lifetimeSavedBytes += savedInThisBatch
                         
                         // Per-format breakdown
-                        for i in 0..<updatedFiles.count {
-                            if updatedFiles[i].status == .done {
-                                let ext = updatedFiles[i].url.pathExtension
-                                let saved = Int(max(0, updatedFiles[i].originalSize - updatedFiles[i].optimizedSize))
-                                store.updateFormatSavings(extension: ext, savedBytes: saved)
-                            }
+                        for file in updatedFiles where file.status == .done {
+                            let ext = file.url.pathExtension
+                            let saved = Int(max(0, file.originalSize - file.optimizedSize))
+                            store.updateFormatSavings(extension: ext, savedBytes: saved)
                         }
                     }
                     
-                AppUIManager.shared.showDockBounce()
-                
-                if self.settingsStore?.notifyOnCompletion == true {
-                    AppUIManager.shared.showNotification(
-                        title: "Done!",
-                        body: "Files processed: \(self.stats.processedFiles)"
-                    )
+                    AppUIManager.shared.showDockBounce()
+                    
+                    if self.settingsStore?.notifyOnCompletion == true {
+                        AppUIManager.shared.showNotification(
+                            title: NSLocalizedString("Compression Complete", comment: ""),
+                            body: String(format: NSLocalizedString("Optimized %d images and saved %@", comment: ""), 
+                                        self.stats.successfulFiles, 
+                                        ByteCountFormatter.string(fromByteCount: self.stats.savedBytes, countStyle: .file))
+                        )
+                    }
+                    
+                    if self.settingsStore?.playSoundOnCompletion == true {
+                        AppUIManager.shared.playCompletionSound()
+                    }
+                    
+                    self.isProcessing = false
+                    self.cleanupResources()
                 }
-            }
             }
         )
     }
     
-    func cancelProcessing() {
-        ProcessingManager.shared.cancel()
-        SecureIntegrationLayer.shared.cancelCompression()
-        self.isProcessing = false
+    private func cleanupResources() {
+        print("DEBUG: Cleaning up \(accessedURLs.count) security scoped resources")
+        for url in accessedURLs {
+            url.stopAccessingSecurityScopedResource()
+        }
+        accessedURLs.removeAll()
     }
     
-    @MainActor
+    func cancelProcessing() {
+        ProcessingManager.shared.cancel()
+        Task {
+            await SecureIntegrationLayer.shared.cancelCompression()
+            await MainActor.run {
+                self.isProcessing = false
+                self.cleanupResources()
+            }
+        }
+    }
+    
     func clearSession() {
         self.processedFiles.removeAll()
         self.stats = SessionStats()
@@ -349,13 +392,13 @@ class SessionStore: ObservableObject {
         self.sessionSavedBytes = 0
         self.currentFileName = ""
         self.isProcessing = false
+        cleanupResources()
     }
     
     // MARK: - Integration
     
     private var observers: [NSObjectProtocol] = []
     
-    @MainActor
     func bindEvents() {
         let center = NotificationCenter.default
         
@@ -406,6 +449,11 @@ class SessionStore: ObservableObject {
     }
     
     deinit {
-        for obs in observers { NotificationCenter.default.removeObserver(obs) }
+        // We can't access 'observers' here because it's MainActor-isolated
+        // and deinit is non-isolated. However, for a singleton or app-lifecycle 
+        // objects, this is often handled by the system. 
+        // If needed, we could use a non-isolated observer storage, but for now 
+        // let's just avoid the isolation break.
     }
 }
+

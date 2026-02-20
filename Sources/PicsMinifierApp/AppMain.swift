@@ -58,12 +58,8 @@ struct PicsMinifierMainApp: App {
                 if CSVLogger(logURL: logURL) == nil {
                         CrashLogger.shared.logError("Failed to initialize CSV logger", context: "AppMain")
                 }
-		// Bind progress update
-		Task { @MainActor in
-			let dummyView = ContentView()
-			// Trigger to register observer. In production code bind in onAppear
-			_ = dummyView
-		}
+		// Register session event binding is handled by SessionStore directly via bindEvents()
+		// called from ContentView.onAppear
 		// Set path to embedded libwebp.dylib if present
 		if ProcessInfo.processInfo.environment["PICS_LIBWEBP_PATH"] == nil {
 			if let libURL = Bundle.main.url(forResource: "libwebp", withExtension: "dylib") {

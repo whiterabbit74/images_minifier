@@ -44,11 +44,11 @@ struct ResultsTableView: View {
                 
                 Text(NSLocalizedString("Savings", comment: ""))
                     .frame(width: 100, alignment: .trailing)
-                    .foregroundColor(Color.proGreen)
+                    .foregroundStyle(Color.proGreen)
                     .padding(.trailing, 20)
             }
             .font(.system(size: 13, weight: .semibold))
-            .foregroundColor(Color.proTextMuted)
+            .foregroundStyle(Color.proTextMuted)
             .frame(height: 35)
             .background(Color.proPanel)
             .border(width: 1, edges: [.bottom], color: Color.proBorder)
@@ -78,7 +78,7 @@ struct ResultsTableView: View {
                             Text(NSLocalizedString("Clear List", comment: ""))
                         }
                         .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                     }
                     .buttonStyle(.plain)
                     
@@ -96,7 +96,7 @@ struct ResultsTableView: View {
                     }
                 }
                 .font(.system(size: 13))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 20)
                 .frame(height: 40)
                 .background(Color.proAccent)
@@ -114,13 +114,13 @@ struct ResultsRow: View {
             // File Name with Icon
             HStack(spacing: 12) {
                 Image(systemName: iconFor(file))
-                    .foregroundColor(Color.proTextMuted)
+                    .foregroundStyle(Color.proTextMuted)
                     .frame(width: 20)
                 
                 Text(file.name)
                     .truncationMode(.middle)
                     .font(.system(size: 13))
-                    .foregroundColor(Color.proTextMain)
+                    .foregroundStyle(Color.proTextMain)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 20)
@@ -129,26 +129,26 @@ struct ResultsRow: View {
             Text(ByteCountFormatter.string(fromByteCount: file.originalSize, countStyle: .file))
                 .monospacedDigit()
                 .font(.system(size: 13))
-                .foregroundColor(Color.proTextMuted)
+                .foregroundStyle(Color.proTextMuted)
                 .frame(width: 100, alignment: .trailing)
             
             // Optimized
             Text(file.optimizedSize > 0 ? ByteCountFormatter.string(fromByteCount: file.optimizedSize, countStyle: .file) : "—")
                 .monospacedDigit()
                 .font(.system(size: 13))
-                .foregroundColor(Color.proTextMuted)
+                .foregroundStyle(Color.proTextMuted)
                 .frame(width: 100, alignment: .trailing)
             
             // Savings
             Text(savingsText)
                 .monospacedDigit()
                 .font(.system(size: 13, weight: .bold))
-                .foregroundColor(file.status == .done ? Color.proGreen : Color.proTextMuted)
+                .foregroundStyle(file.status == .done ? Color.proGreen : Color.proTextMuted)
                 .frame(width: 100, alignment: .trailing)
                 .padding(.trailing, 20)
         }
         .frame(height: 44)
-        .background(isHovered ? Color(white: 0.17) : Color.clear)
+        .background(isHovered ? Color.proHover : Color.clear)
         .onHover { hovering in isHovered = hovering }
         .border(width: 1, edges: [.bottom], color: Color.proBorder)
     }
@@ -179,6 +179,8 @@ struct ResultsRow: View {
             return NSLocalizedString("Error", comment: "")
         case .pending:
             return NSLocalizedString("Pending", comment: "")
+        case .processing:
+            return "..."
         default:
             return ""
         }

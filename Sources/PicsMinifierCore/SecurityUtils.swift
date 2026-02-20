@@ -199,93 +199,68 @@ public final class SecurityUtils {
 
         process.environment = environment
 
-        // Set up pipes with size limits
+        // Set up pipes
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
-        // Start process
-        try process.run()
-
-        let stdoutHandle = stdoutPipe.fileHandleForReading
-        let stderrHandle = stderrPipe.fileHandleForReading
-
-        // Helper to read data (blocking I/O, so strictly run in detached task)
-        @Sendable func captureOutput(from handle: FileHandle, limit: Int) -> Data {
-            var buffer = Data()
-            let chunkSize = 4096
-
-            while true {
-                let chunk = handle.readData(ofLength: chunkSize)
-                if chunk.isEmpty {
-                    break
-                }
-
-                if buffer.count < limit {
-                    let remaining = limit - buffer.count
-                    if remaining >= chunk.count {
-                        buffer.append(chunk)
-                    } else {
-                        buffer.append(chunk.prefix(remaining))
-                    }
-                }
-            }
-            return buffer
-        }
-
-        // Use detached tasks to read from pipes without blocking the current actor
-        let stdoutTask = Task.detached {
-            return captureOutput(from: stdoutHandle, limit: maxOutputSize)
+        // Atomic data storage
+        let stdoutData = NSMutableData()
+        let stderrData = NSMutableData()
+        
+        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+             let data = handle.availableData
+             if data.count > 0 && stdoutData.length < maxOutputSize {
+                 stdoutData.append(data.prefix(maxOutputSize - stdoutData.length))
+             }
         }
         
-        let stderrTask = Task.detached {
-            return captureOutput(from: stderrHandle, limit: maxOutputSize)
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+             let data = handle.availableData
+             if data.count > 0 && stderrData.length < maxOutputSize {
+                 stderrData.append(data.prefix(maxOutputSize - stderrData.length))
+             }
         }
 
-        // Implement timeout
-        let processTask = Task {
-            process.waitUntilExit()
-            return process.terminationStatus
-        }
-
-        let terminationStatus: Int32
-        do {
-            terminationStatus = try await withThrowingTaskGroup(of: Int32.self) { group in
-                group.addTask { await processTask.value }
-                group.addTask {
-                    if #available(macOS 13.0, *) {
-                        try await Task.sleep(for: .seconds(timeout))
-                    } else {
-                        try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                    }
-                    throw SecurityError.processTimeout
+        return try await withCheckedThrowingContinuation { continuation in
+            var isResumed = false
+            
+            let timer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { _ in
+                if !isResumed {
+                    isResumed = true
+                    process.terminate()
+                    continuation.resume(throwing: SecurityError.processTimeout)
                 }
-
-                let result = try await group.next()!
-                group.cancelAll()
-                return result
             }
-        } catch {
-            process.terminate()
-            stdoutHandle.closeFile()
-            stderrHandle.closeFile()
-            // We can ignore the pending reads as we are throwing
-            throw error
+            
+            process.terminationHandler = { proc in
+                timer.invalidate()
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
+                
+                if !isResumed {
+                    isResumed = true
+                    continuation.resume(returning: SecureProcessResult(
+                        terminationStatus: proc.terminationStatus,
+                        stdout: String(data: stdoutData as Data, encoding: .utf8) ?? "",
+                        stderr: String(data: stderrData as Data, encoding: .utf8) ?? ""
+                    ))
+                }
+            }
+            
+            do {
+                try process.run()
+            } catch {
+                timer.invalidate()
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
+                if !isResumed {
+                    isResumed = true
+                    continuation.resume(throwing: error)
+                }
+            }
         }
-
-        // process has exited, pipes should reach EOF
-        let stdoutData = await stdoutTask.value
-        let stderrData = await stderrTask.value
-        
-        stdoutHandle.closeFile()
-        stderrHandle.closeFile()
-
-        return SecurityUtils.SecureProcessResult(
-            terminationStatus: terminationStatus,
-            stdout: String(data: stdoutData, encoding: .utf8) ?? "",
-            stderr: String(data: stderrData, encoding: .utf8) ?? ""
-        )
     }
 
     // MARK: - File Operations Security

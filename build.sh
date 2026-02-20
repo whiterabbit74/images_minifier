@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
 APP_BUNDLE="${REPO_ROOT}/PicsMinifier.app"
 EXECUTABLE="${REPO_ROOT}/.build/release/PicsMinifierApp"
 APP_ICONS_DIR="${REPO_ROOT}/Resources/AppIcons"
@@ -10,8 +10,11 @@ CORE_RESOURCES="${REPO_ROOT}/Sources/PicsMinifierCore/Resources"
 
 cd "$REPO_ROOT"
 
-echo "🏗️ Creating PicsMinifier.app bundle..."
+echo "🧹 Cleaning previous build artifacts..."
+swift package clean
+rm -rf "$REPO_ROOT/.build"
 rm -rf "$APP_BUNDLE"
+rm -f "$REPO_ROOT/PicsMinifierApp"
 
 echo "📦 Building project (release)..."
 swift build --configuration release
@@ -21,6 +24,7 @@ if [ ! -x "$EXECUTABLE" ]; then
     exit 1
 fi
 
+echo "🏗️ Creating PicsMinifier.app bundle..."
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
@@ -122,13 +126,16 @@ if [ -d "$APP_ICONS_DIR/AppIcon.appiconset" ]; then
         echo "⚠️ Failed to export AppIcon.icns from asset catalog"
     fi
 elif [ -f "$APP_ICONS_DIR/icons.icns" ]; then
-    echo "📱 icons.icns found, extracting fallback iconset"
-    tmp_iconset="$(mktemp -d)"
-    iconutil -c iconset "$APP_ICONS_DIR/icons.icns" -o "$tmp_iconset"
-    mkdir -p "$ASSET_TARGET"
-    cp "$tmp_iconset"/*.png "$ASSET_TARGET" 2>/dev/null || echo "⚠️ Failed to copy icons from icons.icns"
-    rm -rf "$tmp_iconset"
+    echo "📱 icons.icns found, copying fallback icon"
     cp "$APP_ICONS_DIR/icons.icns" "$icns_output"
+    if command -v iconutil >/dev/null 2>&1; then
+        tmp_iconset="$(mktemp -d)"
+        if iconutil -c iconset "$APP_ICONS_DIR/icons.icns" -o "$tmp_iconset" 2>/dev/null; then
+            mkdir -p "$ASSET_TARGET"
+            cp "$tmp_iconset"/*.png "$ASSET_TARGET" 2>/dev/null || echo "⚠️ Failed to copy icons from icons.icns"
+        fi
+        rm -rf "$tmp_iconset"
+    fi
 else
     echo "⚠️ No AppIcon.appiconset available; copying loose PNGs from Resources/AppIcons"
     mkdir -p "$ASSET_TARGET"
@@ -172,5 +179,5 @@ if command -v lsregister >/dev/null 2>&1; then
     lsregister -f "$APP_BUNDLE"
 fi
 
-echo "✅ PicsMinifier.app created successfully!"
+echo "✅ PicsMinifier.app created successfully at: $APP_BUNDLE"
 echo "🚀 You can now run: open PicsMinifier.app"

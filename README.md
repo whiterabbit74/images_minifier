@@ -27,7 +27,7 @@
 - **Parallel Processing**: Multi-threaded compression with adaptive concurrency
 - **Smart Batching**: Efficient handling of large file sets
 - **Memory Management**: Optimized allocation and automatic cleanup
-- **Fast Build**: 2.6 second compilation time for rapid development
+- **Robust Build**: Reliable assembly of .app bundle in ~30-40 seconds
 
 ### 🎨 **User Experience**
 - **Liquid Glass Design**: Modern, premium aesthetic with smooth animations and blur effects
@@ -50,11 +50,12 @@
 git clone https://github.com/whiterabbit74/images_minifier.git
 cd images_minifier
 
-# Build the application (always use this script for a fresh build)
-./build_app.sh
+# ⚠️ IMPORTANT: Build ONLY via this script
+# It handles clean-up, asset bundling, and release optimization
+./build.sh
 
 # Run the application
-./PicsMinifierApp
+open PicsMinifier.app
 ```
 
 ### Optional: Install Modern Compression Tools
@@ -76,6 +77,7 @@ export GIFSICLE_PATH="/custom/path/to/gifsicle"
 
 ```
 PicsMinifier/
+├── build.sh                        # Primary entry point: cleans and builds release .app
 ├── Docs/                           # Historical reports and AI guidance
 ├── Resources/
 │   ├── AppIcons/                   # Icon assets and menu bar PDFs
@@ -83,10 +85,9 @@ PicsMinifier/
 │       ├── Images/                 # Sample inputs for manual compression tests
 │       └── Results/                # Output artifacts produced by scripts
 ├── Scripts/
-│   ├── build.sh                    # Release build helper
-│   ├── create_app.sh               # macOS bundle assembly
 │   ├── create_icons.sh             # Iconset generation
-│   └── manual/                     # Swift scripts for optional tool checks
+│   ├── populate_resources.sh       # Asset preparation
+│   └── run_app.sh                  # Development runner
 ├── Sources/
 │   ├── PicsMinifierCore/           # Core compression logic
 │   ├── PicsMinifierApp/            # SwiftUI application
@@ -134,12 +135,10 @@ graph TD
 
 ### Helper Scripts
 
-### Helper Scripts
-
-- `build_app.sh` – **Primary build script**. Cleans cache and builds release binary to root.
-- `Scripts/create_app.sh` – assembles a distributable `.app` bundle with bundled assets.
-- `Scripts/create_icons.sh` – regenerates the asset catalog from `Resources/AppIcons/icons.icns`.
-- `Scripts/manual/test_smart_compression.swift` – optional macOS-only sanity check for external compression tools.
+- `build.sh` – **Primary build script**. Cleans cache, builds release binary, and assembles the `.app` bundle.
+- `Scripts/run_app.sh` – Convenient runner for development.
+- `Scripts/create_icons.sh` – regenerates the asset catalog from source icons.
+- `Scripts/manual/` – containing helper scripts for tool validation and manual tests.
 
 ### Command Line Integration
 
@@ -190,11 +189,11 @@ export PICS_TEMP_DIR="/secure/temp"
 
 | Metric | Value | Description |
 |--------|-------|-------------|
-| **Build Time** | 2.6s | Clean build from source |
-| **Memory Usage** | <50MB | Typical operation |
-| **Concurrency** | 4-8 threads | Adaptive based on CPU cores |
-| **File Size Limit** | 1GB | Security-enforced maximum |
-| **Processing Speed** | 10-100 files/min | Depends on file size and format |
+| **Build Time** | ~30s | Full clean build and bundle assembly |
+| **Memory Usage** | <60MB | Typical background operation |
+| **Concurrency** | 4-12 threads | Adaptive based on CPU cores |
+| **File Size Limit** | 500MB | Default security-enforced maximum |
+| **Processing Speed** | 20-150 files/min | Depends on file size and compression level |
 
 ## 🔧 Configuration
 
@@ -204,19 +203,20 @@ The application supports various configuration options:
 
 ```swift
 public struct AppSettings {
-    public var preset: CompressionPreset = .balanced    // Quality level
-    public var saveMode: SaveMode = .suffix             // Output strategy
+    public var preset: CompressionPreset = .balanced    // quality, balanced, saving, custom
+    public var saveMode: SaveMode = .suffix             // suffix, separateFolder, overwrite
     public var preserveMetadata: Bool = true            // EXIF preservation
-    public var convertToSRGB: Bool = false              // Color space conversion
-    public var enableGifsicle: Bool = true              // GIF optimization
-    public var maxDimension: Int? = nil                 // Size limiting
+    public var convertToSRGB: Bool = false              // Color space normalization
+    public var resizeEnabled: Bool = false              // Image resizing toggle
+    public var resizeValue: Int = 1920                  // Max dimension in Px
+    public var compressImmediately: Bool = true         // Auto-start on drop
 }
 
 public enum CompressionPreset {
-    case quality    // Highest quality (92% JPEG, level 2 PNG)
-    case balanced   // Balanced quality/size (82% JPEG, level 3 PNG)
-    case saving     // Maximum compression (72% JPEG, level 6 PNG)
-    case auto       // Intelligent selection based on content
+    case quality    // Priority: Details
+    case balanced   // Priority: Balance
+    case saving     // Priority: Size
+    case custom     // Priority: User-defined parameters
 }
 ```
 
@@ -265,7 +265,7 @@ swift run test_secure_integration
    ```
 4. **Build and test**:
    ```bash
-   swift build && swift test
+   ./build.sh && swift test
    ```
 
 ### Code Guidelines

@@ -1,11 +1,11 @@
-// swift-tools-version:5.7
+// swift-tools-version:5.9
 import PackageDescription
 
 let package = Package(
 	name: "PicsMinifier",
 	defaultLocalization: "ru",
 	platforms: [
-		.macOS(.v12)
+		.macOS(.v14)
 	],
 	products: [
 		.executable(name: "PicsMinifierApp", targets: ["PicsMinifierApp"]),
@@ -32,9 +32,7 @@ let package = Package(
 			name: "PicsMinifierApp",
 			dependencies: ["PicsMinifierCore"],
 			path: "Sources/PicsMinifierApp",
-			exclude: [
-				"SettingsView.swift"
-			],
+			exclude: [],
 			resources: [
 				.process("Resources")
 			]

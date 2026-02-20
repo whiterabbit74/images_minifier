@@ -336,7 +336,7 @@ public final class ConfigurationManager {
 
     public var defaultLocale: String {
         // Detect system locale and provide fallback
-        let systemLocale = Locale.current.languageCode ?? "en"
+        let systemLocale = Locale.current.language.languageCode?.identifier ?? "en"
         return supportedLocales.contains(systemLocale) ? systemLocale : "en"
     }
 

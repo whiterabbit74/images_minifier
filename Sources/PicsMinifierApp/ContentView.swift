@@ -5,13 +5,13 @@ import UniformTypeIdentifiers
 
 // MARK: - Main Content View
 struct ContentView: View {
-    @StateObject private var settingsStore = SettingsStore()
-    @StateObject private var sessionStore = SessionStore()
+    @State private var settingsStore = SettingsStore()
+    @State private var sessionStore = SessionStore()
     
     @State private var isTargeted: Bool = false
     @State private var confirmOverwrite: Bool = false
-    @State var showingSettings: Bool = false // Keeping for now, will replace with Sidebar later
-    @State var progressObserverTokens: [NSObjectProtocol] = []
+    @State private var showingSettings: Bool = false 
+    @State private var progressObserverTokens: [NSObjectProtocol] = []
     @State private var confettiCounter: Int = 0 // Trigger for confetti
     @State private var currentTab: AppTab = .optimizer
 
@@ -30,12 +30,19 @@ struct ContentView: View {
         .onDrop(of: [.item, .fileURL, .url, .text], delegate: AppDropDelegate(sessionStore: sessionStore, settingsStore: settingsStore, isTargeted: $isTargeted, currentTab: $currentTab))
         .frame(minWidth: 600, minHeight: 450)
         .onAppear(perform: setupApp)
-        .onChange(of: settingsStore.showDockIcon, perform: updateDockIcon)
-        .onChange(of: settingsStore.showMenuBarIcon, perform: updateMenuBarIcon)
-        .onChange(of: sessionStore.isProcessing) { processing in
+        .onChange(of: settingsStore.showDockIcon) { _, newValue in
+            updateDockIcon(newValue)
+        }
+        .onChange(of: settingsStore.showMenuBarIcon) { _, newValue in
+            updateMenuBarIcon(newValue)
+        }
+        .onChange(of: sessionStore.isProcessing) { _, processing in
             if !processing && sessionStore.stats.totalInBatch > 0 && sessionStore.stats.failedFiles == 0 {
                 confettiCounter += 1
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            currentTab = .settings
         }
     }
 
@@ -44,18 +51,24 @@ struct ContentView: View {
             // Top Toolbar
             HStack(spacing: 16) {
                 // Left: Tabs
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     TabButton(title: NSLocalizedString("Optimizer", comment: ""), icon: "bolt.fill", isSelected: currentTab == .optimizer) {
                         currentTab = .optimizer
                     }
+                    .accessibilityLabel(NSLocalizedString("Optimizer Tab", comment: ""))
+                    .accessibilityHint(NSLocalizedString("Switch to image optimization view", comment: ""))
                     
                     TabButton(title: NSLocalizedString("Statistics", comment: ""), icon: "chart.bar.fill", isSelected: currentTab == .statistics) {
                         currentTab = .statistics
                     }
+                    .accessibilityLabel(NSLocalizedString("Statistics Tab", comment: ""))
+                    .accessibilityHint(NSLocalizedString("View your compression savings and trends", comment: ""))
                     
                     TabButton(title: NSLocalizedString("Settings", comment: ""), icon: "gearshape.fill", isSelected: currentTab == .settings) {
                         currentTab = .settings
                     }
+                    .accessibilityLabel(NSLocalizedString("Settings Tab", comment: ""))
+                    .accessibilityHint(NSLocalizedString("Configure application preferences", comment: ""))
                 }
                 
                 Spacer()
@@ -64,7 +77,7 @@ struct ContentView: View {
                 HStack(spacing: 12) {
                     // Progress Indicator (if processing)
                     if sessionStore.isProcessing {
-                        ProgressView().controlSize(.small)
+                        SwiftUI.ProgressView().controlSize(.small)
                         .scaleEffect(0.8)
                         .padding(.trailing, 8)
                     }
@@ -73,26 +86,29 @@ struct ContentView: View {
                     Button(action: toggleAppearanceMode) {
                         Image(systemName: themeIconName)
                             .font(.system(size: 14))
-                            .foregroundColor(Color.proTextMuted)
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .buttonStyle(.plain)
                     .help(NSLocalizedString("Toggle Theme", comment: ""))
+                    .accessibilityLabel(NSLocalizedString("Toggle Theme", comment: ""))
+                    .accessibilityHint(NSLocalizedString("Switch between light, dark, and system appearance", comment: ""))
                     
                     if !sessionStore.isProcessing && sessionStore.processedFiles.contains(where: { $0.status == .pending }) {
                         Button(action: {
                             Task { await sessionStore.startPendingCompression() }
                         }) {
                             Text(NSLocalizedString("Start", comment: ""))
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 6)
                                 .background(Color.accentColor)
-                                .cornerRadius(6)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                         .buttonStyle(.plain)
-                        .transition(.scale)
+                        .transition(.scale.combined(with: .opacity))
+                        .accessibilityLabel(NSLocalizedString("Start Optimization", comment: ""))
+                        .accessibilityHint(NSLocalizedString("Begin processing the pending images", comment: ""))
                     }
                 }
             }
@@ -125,23 +141,7 @@ struct ContentView: View {
                 case .statistics:
                      StatisticsView(settingsStore: settingsStore, sessionStore: sessionStore)
                 case .settings:
-                    SimpleSettingsView(
-                        preset: $settingsStore.preset,
-                        saveMode: $settingsStore.saveMode,
-                        preserveMetadata: $settingsStore.preserveMetadata,
-                        convertToSRGB: $settingsStore.convertToSRGB,
-                        enableGifsicle: $settingsStore.enableGifsicle,
-                        appearanceMode: $settingsStore.appearanceMode,
-                        showDockIcon: $settingsStore.showDockIcon,
-                        showMenuBarIcon: $settingsStore.showMenuBarIcon,
-                        customJpegQuality: $settingsStore.customJpegQuality,
-                        customPngLevel: $settingsStore.customPngLevel,
-                        customAvifQuality: $settingsStore.customAvifQuality,
-                        customAvifSpeed: $settingsStore.customAvifSpeed,
-                        customWebPQuality: $settingsStore.customWebPQuality,
-                        customWebPMethod: $settingsStore.customWebPMethod,
-                        enableSvgcleaner: $settingsStore.enableSvgcleaner
-                    )
+                    SimpleSettingsView(store: settingsStore)
                 }
                 
                 ConfettiView(counter: confettiCounter)
@@ -152,12 +152,10 @@ struct ContentView: View {
     // MARK: - Change Handlers
 
     private func updateDockIcon(_ val: Bool) {
-        UserDefaults.standard.set(val, forKey: "ui.showDockIcon")
         AppUIManager.shared.setDockIconVisible(val)
     }
 
     private func updateMenuBarIcon(_ val: Bool) {
-        UserDefaults.standard.set(val, forKey: "ui.showMenuBarIcon")
         AppUIManager.shared.setMenuBarIconVisible(val)
     }
 
@@ -259,20 +257,21 @@ struct TabButton: View {
     
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .imageScale(.medium)
                 Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(isSelected ? Color.proBtnActive : Color.clear)
-            .foregroundColor(isSelected ? Color.proTextMain : Color.proTextMuted)
-            .cornerRadius(6)
+            .foregroundStyle(isSelected ? .primary : .secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -282,27 +281,31 @@ struct DropZoneView: View {
     let isTargeted: Bool
 
     var body: some View {
-        VStack(spacing: 15) {
-            Image(systemName: "cloud")
-                .font(.system(size: 40, weight: .thin))
-                .foregroundColor(Color.proTextMuted)
+        VStack(spacing: 20) {
+            Image(systemName: "square.and.arrow.down")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             
-            VStack(spacing: 5) {
+            VStack(spacing: 8) {
                 Text(NSLocalizedString("Drag files here to start batch", comment: ""))
-                    .font(.system(size: 13))
-                    .foregroundColor(Color.proTextMain)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
                 Text(NSLocalizedString("Supports nested folders", comment: ""))
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.proTextMuted)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
+            .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(isTargeted ? Color.accentColor.opacity(0.05) : Color.clear)
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(isTargeted ? Color.accentColor : Color.proBorder, style: StrokeStyle(lineWidth: 2, dash: [4]))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(isTargeted ? Color.accentColor : Color.secondary.opacity(0.2), style: StrokeStyle(lineWidth: 2, dash: [6]))
         )
-        .padding(20)
+        .padding(24)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(NSLocalizedString("Drop files here to optimize", comment: ""))
     }
 }
 
@@ -365,49 +368,52 @@ struct ProcessingView: View {
                 } else {
                      Image(systemName: statusIcon)
                         .font(.system(size: 30))
-                        .foregroundColor(statusColor)
+                        .foregroundStyle(statusColor)
                 }
             }
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Text(NSLocalizedString(statusTitle, comment: ""))
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(Color.proTextMain) // Adaptive
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.primary)
 
                 if isProcessing && !currentFileName.isEmpty {
                     Text(currentFileName)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.proTextMuted) // Adaptive
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                         .truncationMode(.middle)
-                        .frame(maxWidth: 300)
+                        .frame(maxWidth: 320)
                 }
             }
 
             // Progress Bar
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(Color.proTextMuted.opacity(0.1)) // Adaptive
-                            .frame(height: 4)
+                        Capsule()
+                            .fill(Color.secondary.opacity(0.1))
+                            .frame(height: 6)
                         
-                        Rectangle()
+                        Capsule()
                             .fill(Color.accentColor)
-                            .frame(width: geo.size.width * CGFloat(progress), height: 4)
+                            .frame(width: geo.size.width * CGFloat(progress), height: 6)
                     }
                 }
-                .frame(height: 4)
-                .padding(.horizontal, 40)
+                .frame(height: 6)
+                .padding(.horizontal, 48)
                 
                 HStack {
                     Text("\(Int(progress * 100))%")
                     Spacer()
                     Text("\(stats.processedFiles) / \(stats.totalInBatch)")
                 }
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(Color.proTextMuted) // Adaptive
-                .padding(.horizontal, 40)
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 48)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(NSLocalizedString("Optimization progress", comment: ""))
+            .accessibilityValue("\(Int(progress * 100)) percent, \(stats.processedFiles) of \(stats.totalInBatch) files")
 
 
             // Stats Grid
@@ -453,18 +459,21 @@ struct StatPip: View {
     var isError: Bool = false
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             Text(title)
-                .font(.system(size: 9, weight: .black))
-                .foregroundColor(Color.proTextMuted)
+                .font(.caption.weight(.black))
+                .foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundColor(isError ? .red : Color.proTextMain)
+                .font(.body.weight(.medium).monospacedDigit())
+                .foregroundStyle(isError ? .red : .primary)
         }
-        .padding(8)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .background(Color.proBorder.opacity(0.4)) // Visible in both light (greyish) and dark modes
-        .cornerRadius(4)
+        .background(Color.proBorder.opacity(0.3))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value)")
     }
 }
 

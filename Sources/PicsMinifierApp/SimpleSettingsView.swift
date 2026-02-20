@@ -2,82 +2,26 @@ import SwiftUI
 import PicsMinifierCore
 
 struct SimpleSettingsView: View {
-    @Binding var preset: CompressionPreset
-    @Binding var saveMode: SaveMode
-    @Binding var preserveMetadata: Bool
-    @Binding var convertToSRGB: Bool
-    @Binding var enableGifsicle: Bool
-    @Binding var appearanceMode: AppearanceMode
-    @Binding var showDockIcon: Bool
-    @Binding var showMenuBarIcon: Bool
-    
-    // Custom Settings (Unused in this view but passed for compatibility)
-    @Binding var customJpegQuality: Double
-    @Binding var customPngLevel: Int
-    @Binding var customAvifQuality: Int
-    @Binding var customAvifSpeed: Int
-    @Binding var customWebPQuality: Int
-    @Binding var customWebPMethod: Int
-    @Binding var enableSvgcleaner: Bool
-    
-    @ObservedObject var store: SettingsStore // Access new properties
-    
-    // Init adapter to grab store reference
-    init(
-        preset: Binding<CompressionPreset>,
-        saveMode: Binding<SaveMode>,
-        preserveMetadata: Binding<Bool>,
-        convertToSRGB: Binding<Bool>,
-        enableGifsicle: Binding<Bool>,
-        appearanceMode: Binding<AppearanceMode>,
-        showDockIcon: Binding<Bool>,
-        showMenuBarIcon: Binding<Bool>,
-        customJpegQuality: Binding<Double>,
-        customPngLevel: Binding<Int>,
-        customAvifQuality: Binding<Int>,
-        customAvifSpeed: Binding<Int>,
-        customWebPQuality: Binding<Int>,
-        customWebPMethod: Binding<Int>,
-        enableSvgcleaner: Binding<Bool>
-    ) {
-        _preset = preset
-        _saveMode = saveMode
-        _preserveMetadata = preserveMetadata
-        _convertToSRGB = convertToSRGB
-        _enableGifsicle = enableGifsicle
-        _appearanceMode = appearanceMode
-        _showDockIcon = showDockIcon
-        _showMenuBarIcon = showMenuBarIcon
-        _customJpegQuality = customJpegQuality
-        _customPngLevel = customPngLevel
-        _customAvifQuality = customAvifQuality
-        _customAvifSpeed = customAvifSpeed
-        _customWebPQuality = customWebPQuality
-        _customWebPMethod = customWebPMethod
-        _enableSvgcleaner = enableSvgcleaner
-        
-        // Create a local instance to access AppStorage wrappers for new keys
-        self.store = SettingsStore() 
-    }
+    @Bindable var store: SettingsStore
     
     // Computed interface mode
     private var interfaceMode: InterfaceMode {
         get {
-            if showDockIcon && showMenuBarIcon { return .both }
-            if showDockIcon { return .dock }
-            return .menuBar // Default fallback
+            if store.showDockIcon && store.showMenuBarIcon { return .both }
+            if store.showDockIcon { return .dock }
+            return .menuBar
         }
         set {
             switch newValue {
             case .dock:
-                showDockIcon = true
-                showMenuBarIcon = false
+                store.showDockIcon = true
+                store.showMenuBarIcon = false
             case .menuBar:
-                showDockIcon = false
-                showMenuBarIcon = true
+                store.showDockIcon = false
+                store.showMenuBarIcon = true
             case .both:
-                showDockIcon = true
-                showMenuBarIcon = true
+                store.showDockIcon = true
+                store.showMenuBarIcon = true
             }
         }
     }
@@ -97,71 +41,87 @@ struct SimpleSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(NSLocalizedString("Settings", comment: ""))
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
-                Spacer()
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.proTextMain)
+                
+                Text(NSLocalizedString("Configure app behavior and interface", comment: ""))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.proTextMuted)
             }
-            .padding(16)
-            .background(Color(hex: "1e1e1e"))
-            .border(width: 1, edges: [.bottom], color: Color(hex: "333333"))
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glossyMaterial(.headerView)
+            .border(width: 1, edges: [.bottom], color: Color.proBorder)
             
             ScrollView {
-                VStack(spacing: 24) {
-                    
-                    // General Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: NSLocalizedString("GENERAL", comment: ""), icon: "gear")
+                Form {
+                    // MARK: - General
+                    Section {
+                        LabeledContent {
+                            Toggle("", isOn: $store.launchAtLoginProxy)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                                .accessibilityLabel(NSLocalizedString("Launch at Login", comment: ""))
+                        } label: {
+                            SettingsLabel(title: NSLocalizedString("Launch at Login", comment: ""), icon: "desktopcomputer")
+                        }
                         
-                        ProToggle(isOn: $store.launchAtLoginProxy, title: NSLocalizedString("Launch at Login", comment: ""), icon: "desktopcomputer")
-                        ProToggle(isOn: $store.notifyOnCompletion, title: NSLocalizedString("Notify on Completion", comment: ""), icon: "bell.badge")
+                        LabeledContent {
+                            Toggle("", isOn: $store.notifyOnCompletion)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                                .accessibilityLabel(NSLocalizedString("Notify on Completion", comment: ""))
+                        } label: {
+                            SettingsLabel(title: NSLocalizedString("Notify on Completion", comment: ""), icon: "bell.fill")
+                        }
+                        
+                        LabeledContent {
+                            Toggle("", isOn: $store.playSoundOnCompletion)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                                .accessibilityLabel(NSLocalizedString("Sound on Completion", comment: ""))
+                        } label: {
+                            SettingsLabel(title: NSLocalizedString("Sound on Completion", comment: ""), icon: "speaker.wave.2.fill")
+                        }
+                    } header: {
+                        Text(NSLocalizedString("WORKFLOW", comment: ""))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.proTextMuted)
+                            .padding(.top, 16)
                     }
-                    
-                    Divider().background(Color(hex: "333333"))
-                    
-                    // Interface Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: NSLocalizedString("INTERFACE", comment: ""), icon: "macwindow")
-                        
-                        // Theme
-                        HStack {
-                            Label(NSLocalizedString("Theme", comment: ""), systemImage: "paintpalette")
-                                .font(.system(size: 13))
-                                .foregroundColor(Color(hex: "dddddd"))
-                            Spacer()
-                            Picker("", selection: $appearanceMode) {
-                                Text(NSLocalizedString("System", comment: "")).tag(AppearanceMode.auto)
+
+                    // MARK: - Interface
+                    Section {
+                        LabeledContent {
+                            Picker("", selection: $store.appearanceMode) {
+                                Text(NSLocalizedString("Auto", comment: "")).tag(AppearanceMode.auto)
                                 Text(NSLocalizedString("Dark", comment: "")).tag(AppearanceMode.dark)
                                 Text(NSLocalizedString("Light", comment: "")).tag(AppearanceMode.light)
                             }
                             .pickerStyle(.segmented)
-                            .frame(width: 220)
+                            .frame(width: 180)
+                            .accessibilityLabel(NSLocalizedString("Appearance Mode", comment: ""))
+                        } label: {
+                            SettingsLabel(title: NSLocalizedString("Theme", comment: ""), icon: "paintpalette.fill")
                         }
-                        .padding(12)
-                        .background(Color(hex: "252525"))
-                        .cornerRadius(8)
                         
-                        // Icons Visibility (Horizontal Picker)
-                        HStack {
-                            Label(NSLocalizedString("App Icon", comment: ""), systemImage: "app.dashed")
-                                .font(.system(size: 13))
-                                .foregroundColor(Color(hex: "dddddd"))
-                            Spacer()
+                        LabeledContent {
                             Picker("", selection: Binding(
                                 get: { interfaceMode },
                                 set: { newValue in
-                                    // Manually expand the setter logic here to avoid 'self is immutable' on property assignment
                                     switch newValue {
                                     case .dock:
-                                        showDockIcon = true
-                                        showMenuBarIcon = false
+                                        store.showDockIcon = true
+                                        store.showMenuBarIcon = false
                                     case .menuBar:
-                                        showDockIcon = false
-                                        showMenuBarIcon = true
+                                        store.showDockIcon = false
+                                        store.showMenuBarIcon = true
                                     case .both:
-                                        showDockIcon = true
-                                        showMenuBarIcon = true
+                                        store.showDockIcon = true
+                                        store.showMenuBarIcon = true
                                     }
                                 }
                             )) {
@@ -170,125 +130,95 @@ struct SimpleSettingsView: View {
                                 }
                             }
                             .pickerStyle(.segmented)
-                            .frame(width: 220)
+                            .frame(width: 180)
+                            .accessibilityLabel(NSLocalizedString("Interface Mode", comment: ""))
+                        } label: {
+                            SettingsLabel(title: NSLocalizedString("App Visibility", comment: ""), icon: "macwindow")
                         }
-                        .padding(12)
-                        .background(Color(hex: "252525"))
-                        .cornerRadius(8)
-
-                        // Language
-                        HStack {
-                            Label(NSLocalizedString("Language", comment: ""), systemImage: "globe")
-                                .font(.system(size: 13))
-                                .foregroundColor(Color(hex: "dddddd"))
-                            Spacer()
+                        
+                        LabeledContent {
                             Menu {
                                 ForEach(AppLanguage.allCases, id: \.self) { lang in
-                                    Button(action: {
+                                    Button(LanguageManager.shared.getCurrentLanguageDisplayName(for: lang)) {
                                         store.language = lang
-                                    }) {
-                                        Text(LanguageManager.shared.getCurrentLanguageDisplayName(for: lang))
                                     }
                                 }
                             } label: {
-                                Text(store.language.displayName)
+                                HStack(spacing: 4) {
+                                    Text(store.language.displayName)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 8))
+                                }
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.proTextMain)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.proBtnActive)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
-                            .frame(width: 220, alignment: .trailing)
+                            .menuStyle(.borderlessButton)
+                            .accessibilityLabel(NSLocalizedString("Application Language", comment: ""))
+                        } label: {
+                            SettingsLabel(title: NSLocalizedString("Language", comment: ""), icon: "globe")
                         }
-                        .padding(12)
-                        .background(Color(hex: "252525"))
-                        .cornerRadius(8)
+                    } header: {
+                        Text(NSLocalizedString("INTERFACE", comment: ""))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.proTextMuted)
+                            .padding(.top, 24)
                     }
-                     
                 }
-                .padding(20)
+                .formStyle(.grouped)
+                .padding(.horizontal, 8)
             }
             
             // Footer
             HStack {
+                Text("PicsMinifier Pro v.2.6")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color.proTextMuted)
+                
                 Spacer()
-                Button(NSLocalizedString("Reset All", comment: "")) {
-                    store.resetToDefaults()
+                
+                Button(action: { store.resetToDefaults() }) {
+                    Text(NSLocalizedString("Reset to Defaults", comment: ""))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.red.opacity(0.8))
                 }
-                .font(.caption)
-                .foregroundColor(.gray)
                 .buttonStyle(.plain)
+                .accessibilityHint(NSLocalizedString("Restores all settings to their original values", comment: ""))
             }
-            .padding(12)
-            .background(Color(hex: "1e1e1e"))
-            .border(width: 1, edges: [.top], color: Color(hex: "333333"))
+            .padding(.horizontal, 24)
+            .padding(.vertical, 14)
+            .glossyMaterial(.headerView)
+            .border(width: 1, edges: [.top], color: Color.proBorder)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(hex: "1a1a1a"))
+        .background(Color.proBg)
     }
 }
 
 // MARK: - Components
 
-struct SectionHeader: View {
+struct SettingsLabel: View {
     let title: String
     let icon: String
     
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.gray)
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.proAccent.opacity(0.12))
+                    .frame(width: 26, height: 26)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.proAccent)
+            }
+            
             Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.gray)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.proTextMain)
         }
-        .padding(.bottom, 4)
-    }
-}
-
-struct ProToggle: View {
-    @Binding var isOn: Bool
-    let title: String
-    let icon: String
-    
-    var body: some View {
-        HStack {
-            Label(title, systemImage: icon)
-                .font(.system(size: 13))
-                .foregroundColor(Color(hex: "dddddd"))
-            Spacer()
-            Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: .blue))
-        }
-        .padding(12)
-        .background(Color(hex: "252525"))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(hex: "333333"), lineWidth: 1)
-        )
-    }
-}
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
-        }
-
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue:  Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
