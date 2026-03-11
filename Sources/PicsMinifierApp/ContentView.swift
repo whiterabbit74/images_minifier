@@ -27,7 +27,6 @@ struct ContentView: View {
         .id(settingsStore.appearanceMode) // Critical: Force full view hierarchy rebuild on theme change
         .contentShape(Rectangle())
         .onDrop(of: [.item, .fileURL, .url, .text], delegate: AppDropDelegate(sessionStore: sessionStore, settingsStore: settingsStore, isTargeted: $isTargeted, currentTab: $currentTab))
-        .onDrop(of: [.item, .fileURL, .url, .text], delegate: AppDropDelegate(sessionStore: sessionStore, settingsStore: settingsStore, isTargeted: $isTargeted, currentTab: $currentTab))
         .frame(minWidth: 600, minHeight: 450)
         .onAppear(perform: setupApp)
         .onChange(of: settingsStore.showDockIcon) { _, newValue in
@@ -211,6 +210,7 @@ struct ContentView: View {
     private func setupApp() {
         AppUIManager.shared.lockMainWindowSize(width: 600, height: 450)
         AppUIManager.shared.setupWindowPositionAutosave()
+        sessionStore.settingsStore = settingsStore
         
         // Ensure initial appearance is applied
         AppUIManager.shared.applyAppearance(settingsStore.appearanceMode)
